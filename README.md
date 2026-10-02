@@ -2,42 +2,45 @@
 
 Backend API server for **ekhone.com** e-commerce platform.
 
-
 # Express Framework
+
 npm install express
 
 # Google Analytics Data API
+
 npm install @google-analytics/data
 
 # Environment Variables
+
 npm install dotenv
 
 # CORS Support
+
 npm install cors
 
 # HTTP Request Logger (Optional)
+
 npm install morgan
 
 # Security Headers (Optional)
+
 npm install helmet
 
-
-
-
 # Full Google Analytics
+
 curl "http://localhost:5000/api/analytics?startDate=7daysAgo&endDate=today"
 
 # Realtime
+
 curl "http://localhost:5000/api/analytics/realtime"
 
 # Specific Metric
+
 curl "http://localhost:5000/api/analytics/metrics?metric=traffic"
 
+### Configure the Google analytics
 
-### Configure the Google analytics 
-
-GA_PROPERTY_ID, GOOGLE_CLIENT_EMAIL, এবং GOOGLE_PRIVATE_KEY — process......। 
-
+GA_PROPERTY_ID, GOOGLE_CLIENT_EMAIL, এবং GOOGLE_PRIVATE_KEY — process......।
 
 # 1. GA_PROPERTY_ID (Google Analytics Property ID) GA4 প্রপার্টিকে চিহ্নিত করে ।
 
@@ -50,7 +53,6 @@ Google Analytics-এ লগইন করুন ।
 Property Settings (সম্পত্তির সেটিংস)-এ ক্লিক করুন।
 
 সেটিংস পেজের উপরের দিকে আপনি "Property ID" দেখতে পাবেন—এটি আপনার GA_PROPERTY_ID ।
-
 
 # 2. GOOGLE_CLIENT_EMAIL ও GOOGLE_PRIVATE_KEY (Service Account Credentials) এই দুটি মান একটি Service Account-এর JSON কী ফাইল থেকে পাওয়া যায়। যদি আপনার কাছে আগে থেকে না থাকে, তাহলে নতুন করে তৈরি করতে হবে।
 
@@ -85,6 +87,4 @@ Add users-এ ক্লিক করে Service Account-এর client_email অ�
 
 এই তিনটি ধাপ শেষ করলেই আপনার কাছে API-তে ব্যবহারের জন্য প্রয়োজনীয় সব মান চলে আসবে।
 
-
-* Hasib - v8
-
+- Ahmed Siyan - v8
