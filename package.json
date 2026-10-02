@@ -1,0 +1,45 @@
+{
+  "name": "ekhone-server",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon --watch src --exec node src/index.js",
+    "start": "node src/index.js",
+    "build": "prisma generate && echo 'Build complete'",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "seed": "node prisma/seed.js",
+    "postinstall": "prisma generate"
+  },
+  "keywords": [
+    "ekhone",
+    "ecommerce",
+    "server",
+    "prisma",
+    "express"
+  ],
+  "author": "ekhone",
+  "license": "ISC",
+  "description": "Ekhone E-Commerce Backend Server",
+  "dependencies": {
+    "@google-analytics/data": "^7.0.0",
+    "@prisma/client": "^6.17.1",
+    "@react-email/components": "^1.0.1",
+    "@react-email/render": "^2.0.0",
+    "@supabase/supabase-js": "^2.86.2",
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.1",
+    "nodemon": "^3.1.10",
+    "pdfkit": "^0.17.2",
+    "react": "^19.2.1",
+    "resend": "^6.5.2"
+  },
+  "devDependencies": {
+    "prisma": "^6.17.1"
+  }
+}
