@@ -703,6 +703,13 @@ exports.getDashboardKPIs = async (req, res) => {
                                     insideDhakaDeliveryCharge: true,
                                     outsideDhakaDeliveryCharge: true
                                 }
+                            },
+                            productVariant: {
+                                select: {
+                                    id: true,
+                                    costPrice: true,
+                                    price: true
+                                }
                             }
                         }
                     }
@@ -783,7 +790,9 @@ exports.getDashboardKPIs = async (req, res) => {
                     }
 
                     const qty = parseInt(item.quantity || 1);
-                    const cost = parseFloat(item.product?.costPrice || 0);
+                    const variantCost = parseFloat(item.productVariant?.costPrice || 0);
+                    const prodCost = parseFloat(item.product?.costPrice || 0);
+                    const cost = variantCost > 0 ? variantCost : prodCost;
                     const effectiveCost = cost > 0 ? cost : (parseFloat(item.unitPrice || 0) * 0.65);
                     totalCogs += effectiveCost * qty;
                 });
@@ -810,11 +819,13 @@ exports.getDashboardKPIs = async (req, res) => {
         const returnParcelsValue = returnedShipments.reduce((acc, s) => acc + parseFloat(s.order?.grandTotal || s.codAmount || 0), 0);
         const totalReturnsValue = directRefunds + returnParcelsValue;
 
-        const totalExpenses = recordedExpenses + totalShippingCost;
-        const grossProfit = totalSales - totalShippingCost;
+        const directProductCost = totalCogs;
+        // Gross Profit = Total Sales - Cost of Goods Sold (COGS) - Shipping Cost
+        const grossProfit = totalSales - directProductCost - totalShippingCost;
         const grossProfitMargin = totalSales > 0 ? ((grossProfit / totalSales) * 100).toFixed(2) : 0;
 
-        const netProfit = totalRevenue - totalExpenses;
+        const totalExpenses = recordedExpenses + totalShippingCost;
+        const netProfit = grossProfit + otherIncome - recordedExpenses;
         const netProfitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(2) : 0;
 
         return successResponse(res, "Dashboard KPIs retrieved successfully", {
@@ -1145,6 +1156,12 @@ exports.getProfitAndLossReport = async (req, res) => {
                                     insideDhakaDeliveryCharge: true,
                                     outsideDhakaDeliveryCharge: true
                                 }
+                            },
+                            productVariant: {
+                                select: {
+                                    costPrice: true,
+                                    price: true
+                                }
                             }
                         }
                     }
@@ -1220,7 +1237,9 @@ exports.getProfitAndLossReport = async (req, res) => {
                     }
 
                     const qty = parseInt(item.quantity || 1);
-                    const cost = parseFloat(item.product?.costPrice || 0);
+                    const variantCost = parseFloat(item.productVariant?.costPrice || 0);
+                    const prodCost = parseFloat(item.product?.costPrice || 0);
+                    const cost = variantCost > 0 ? variantCost : prodCost;
                     const effectiveCost = cost > 0 ? cost : (parseFloat(item.unitPrice || 0) * 0.65);
                     totalCOGS += effectiveCost * qty;
                 });
@@ -1236,8 +1255,7 @@ exports.getProfitAndLossReport = async (req, res) => {
         const netProductSales = grossProductSales - totalDiscounts;
         const otherIncomeTotal = otherIncomes.reduce((acc, t) => acc + parseFloat(t.amount || 0), 0);
         const totalRevenue = totalSales + otherIncomeTotal;
-
-        const grossProfit = totalSales - totalShippingCost;
+        const grossProfit = totalSales - totalCOGS - totalShippingCost;
         const grossMarginPercent = totalSales > 0 ? ((grossProfit / totalSales) * 100).toFixed(2) : 0;
 
         const expensesByHead = {};
@@ -1253,7 +1271,7 @@ exports.getProfitAndLossReport = async (req, res) => {
         const totalExpenses = totalRecordedExpenses + totalShippingCost;
         const totalRefunds = parseFloat(returnsAgg._sum?.refundAmount || 0);
 
-        const netProfit = totalRevenue - totalExpenses;
+        const netProfit = grossProfit + otherIncomeTotal - totalRecordedExpenses;
         const netMarginPercent = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(2) : 0;
 
         const companyInfo = {
@@ -1366,9 +1384,18 @@ exports.getProductWiseSalesReport = async (req, res) => {
             where: itemWhere,
             select: {
                 productId: true,
+                productVariantId: true,
                 quantity: true,
                 unitPrice: true,
                 lineTotal: true,
+                productVariant: {
+                    select: {
+                        id: true,
+                        sku: true,
+                        price: true,
+                        costPrice: true
+                    }
+                },
                 product: {
                     select: {
                         id: true,
@@ -1398,18 +1425,29 @@ exports.getProductWiseSalesReport = async (req, res) => {
                     sku: item.product?.sku || "N/A",
                     category: item.product?.subCategory?.category?.name || "General",
                     sellingPrice: parseFloat(item.product?.price || item.unitPrice || 0),
-                    costPrice: parseFloat(item.product?.costPrice || 0),
+                    costPrice: 0,
                     unitsSold: 0,
                     totalRevenue: 0,
                     totalCost: 0,
-                    grossProfit: 0
+                    grossProfit: 0,
+                    _hasRealCost: false
                 };
             }
 
             const qty = parseInt(item.quantity || 1);
             const lineRev = parseFloat(item.lineTotal || (parseFloat(item.unitPrice || 0) * qty));
-            const costPerUnit = productMap[pId].costPrice > 0 ? productMap[pId].costPrice : (parseFloat(item.unitPrice || 0) * 0.65);
+            
+            // Priority: Variant costPrice -> Base product costPrice
+            const variantCost = parseFloat(item.productVariant?.costPrice || 0);
+            const prodCost = parseFloat(item.product?.costPrice || 0);
+            const realCost = variantCost > 0 ? variantCost : prodCost;
+            
+            const costPerUnit = realCost > 0 ? realCost : (parseFloat(item.unitPrice || 0) * 0.65);
             const lineCost = costPerUnit * qty;
+
+            if (realCost > 0) {
+                productMap[pId]._hasRealCost = true;
+            }
 
             productMap[pId].unitsSold += qty;
             productMap[pId].totalRevenue += lineRev;
@@ -1417,13 +1455,19 @@ exports.getProductWiseSalesReport = async (req, res) => {
             productMap[pId].grossProfit += (lineRev - lineCost);
         });
 
-        let list = Object.values(productMap).map(p => ({
-            ...p,
-            totalRevenue: parseFloat(p.totalRevenue.toFixed(2)),
-            totalCost: parseFloat(p.totalCost.toFixed(2)),
-            grossProfit: parseFloat(p.grossProfit.toFixed(2)),
-            profitMargin: p.totalRevenue > 0 ? parseFloat(((p.grossProfit / p.totalRevenue) * 100).toFixed(2)) : 0
-        }));
+        let list = Object.values(productMap).map(p => {
+            const avgCostPerUnit = p.unitsSold > 0 ? p.totalCost / p.unitsSold : 0;
+            const avgSellingPrice = p.unitsSold > 0 ? p.totalRevenue / p.unitsSold : p.sellingPrice;
+            return {
+                ...p,
+                sellingPrice: parseFloat(avgSellingPrice.toFixed(2)),
+                costPrice: p._hasRealCost ? parseFloat(avgCostPerUnit.toFixed(2)) : 0,
+                totalRevenue: parseFloat(p.totalRevenue.toFixed(2)),
+                totalCost: parseFloat(p.totalCost.toFixed(2)),
+                grossProfit: parseFloat(p.grossProfit.toFixed(2)),
+                profitMargin: p.totalRevenue > 0 ? parseFloat(((p.grossProfit / p.totalRevenue) * 100).toFixed(2)) : 0
+            };
+        });
 
         // Sorting
         if (sortBy === "quantity") {

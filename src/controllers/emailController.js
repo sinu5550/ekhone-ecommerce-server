@@ -25,11 +25,11 @@ const emailTemplates = {
 };
 
 const fromAddresses = {
-    verification: 'Ekhone <info@ekhone.com>',
-    welcome: 'Ekhone <info@ekhone.com>',
-    passwordResetConfirmation: 'Ekhone <auth@ekhone.com>',
-    orderConfirmation: 'Ekhone <info@ekhone.com>', 
-    bulk: 'Ekhone <noreply@ekhone.com>'
+    verification: 'Ahmed Siyan <info@ahmedsiyan.online>',
+    welcome: 'Ahmed Siyan <info@ahmedsiyan.online>',
+    passwordResetConfirmation: 'Ahmed Siyan <auth@ahmedsiyan.online>',
+    orderConfirmation: 'Ahmed Siyan <info@ahmedsiyan.online>',
+    bulk: 'Ahmed Siyan <noreply@ahmedsiyan.online>'
 };
 
 
@@ -217,9 +217,10 @@ exports.sendEmail = async (req, res) => {
                 });
 
                 if (error) {
+                    console.error('❌ Supabase generateLink error:', error);
                     return res.status(400).json({
                         success: false,
-                        error: 'Failed to generate verification link'
+                        error: error.message || 'Failed to generate verification link'
                     });
                 }
 

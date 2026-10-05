@@ -60,7 +60,59 @@ const createOrder = async (req, res) => {
         // BASIC VALIDATION
         // ============================================
 
-        if (!customerId || !shippingAddressId) {
+        let customerIdInt = customerId ? parseInt(customerId) : null;
+        let shippingAddressIdInt = shippingAddressId ? parseInt(shippingAddressId) : null;
+
+        // Auto-create/find customer & address if customer info is provided (e.g. from Landing Page or Quick Checkout)
+        if ((!customerIdInt || !shippingAddressIdInt) && req.body.customer && req.body.customer.phone) {
+            const custPhone = String(req.body.customer.phone).replace(/\D/g, "");
+            const custName = req.body.customer.fullName || req.body.shippingAddress?.recipientName || "Guest Customer";
+            const custAddress = req.body.customer.address || req.body.shippingAddress?.address || "Address not provided";
+            const custCity = req.body.customer.city || req.body.shippingAddress?.city || "Dhaka";
+
+            let existingCustomer = await prisma.customer.findFirst({
+                where: { phone: custPhone },
+                include: { customerAddresses: true }
+            });
+
+            if (!existingCustomer) {
+                const customerCode = await generateNumber("CUSTOMER");
+                existingCustomer = await prisma.customer.create({
+                    data: {
+                        customerCode,
+                        fullName: custName,
+                        phone: custPhone,
+                        status: true
+                    },
+                    include: { customerAddresses: true }
+                });
+            }
+
+            customerIdInt = existingCustomer.id;
+
+            // Check or create customerAddress
+            let defaultAddress = existingCustomer.customerAddresses?.[0];
+            if (!defaultAddress) {
+                defaultAddress = await prisma.customerAddress.create({
+                    data: {
+                        customerId: customerIdInt,
+                        recipientName: custName,
+                        phoneNumber: custPhone,
+                        address: custAddress,
+                        upazila: custCity,
+                        district: custCity,
+                        division: "Dhaka",
+                        city: custCity,
+                        country: "Bangladesh",
+                        type: "Home",
+                        isDefault: true
+                    }
+                });
+            }
+            shippingAddressIdInt = defaultAddress.id;
+        }
+
+        if (!customerIdInt || !shippingAddressIdInt) {
             return errorResponse(res, "Customer ID and shipping address are required", 400);
         }
 
@@ -68,8 +120,6 @@ const createOrder = async (req, res) => {
             return errorResponse(res, "Order must contain at least one item", 400);
         }
 
-        const customerIdInt = parseInt(customerId);
-        const shippingAddressIdInt = parseInt(shippingAddressId);
         const pointsToRedeemInt = parseInt(pointsToRedeem || 0);
         const pointsDiscountFloat = parseFloat(pointsDiscount || 0);
 

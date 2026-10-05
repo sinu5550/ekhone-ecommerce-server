@@ -45,6 +45,7 @@ const enquiryUsRoutes = require('./routes/enquiryUsRoute');
 const collectionRoutes = require('./routes/collectionRoutes');
 const shipmentRoutes = require('./routes/shipmentRoutes');
 const accountingRoutes = require('./routes/accountingRoutes');
+const landingPageRoutes = require('./routes/landingPageRoutes');
 
 const { getAllProductForAdmin } = require("./controllers/productController");
 const authRoutes = require('./routes/authRoutes');
@@ -63,7 +64,7 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
-app.get('/', (req, res) => res.json({ ok: true, message: 'Ekhone E-commerce server is running powered by Orbixon Tech' }));
+app.get('/', (req, res) => res.json({ ok: true, message: 'Ekhone E-commerce server is running powered by Ahmed Siyan' }));
 
 
 
@@ -95,6 +96,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/shipments', shipmentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/accounting', accountingRoutes);
+app.use('/api/landing-page', landingPageRoutes);
 
 // CMS API
 app.use('/api/hero', heroRoutes);

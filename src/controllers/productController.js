@@ -43,6 +43,7 @@ const createProduct = async (req, res) => {
             "warehouse",
             "warrantyId",
             "price",
+            "costPrice",
             "quantity",
             "images",
             "description",
@@ -104,6 +105,7 @@ const createProduct = async (req, res) => {
         if (data.warrantyId) data.warrantyId = parseInt(data.warrantyId);
         if (data.variantAttributesId) data.variantAttributesId = parseInt(data.variantAttributesId);
         if (data.price) data.price = parseFloat(data.price);
+        if (data.costPrice !== undefined) data.costPrice = parseFloat(data.costPrice) || 0;
         if (data.quantity) data.quantity = parseInt(data.quantity);
         if (data.quantityAlert) data.quantityAlert = parseInt(data.quantityAlert);
         if (data.tax) data.tax = parseFloat(data.tax);
@@ -140,6 +142,7 @@ const createProduct = async (req, res) => {
                     productId: product.id,
                     sku: variant.sku,
                     price: parseFloat(variant.price),
+                    costPrice: parseFloat(variant.costPrice) || parseFloat(data.costPrice) || 0,
                     quantity: parseInt(variant.quantity) || 0,
                     attributes: variant.attributes,
                     image: variant.image || null,
@@ -499,6 +502,7 @@ const updateProduct = async (req, res) => {
                     const variantData = {
                         sku: variant.sku,
                         price: parseFloat(variant.price) || 0,
+                        costPrice: variant.costPrice !== undefined ? (parseFloat(variant.costPrice) || 0) : (data.costPrice !== undefined ? (parseFloat(data.costPrice) || 0) : 0),
                         quantity: parseInt(variant.quantity) || 0,
                         attributes: variant.attributes || {},
                         image: variant.image || null,

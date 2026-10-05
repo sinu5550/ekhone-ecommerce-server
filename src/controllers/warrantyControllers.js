@@ -24,7 +24,7 @@ const getAllWarranty = async (req, res) => {
                     select: { products: true }
                 }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { id: 'desc' }
         });
         return successResponse(res, warrantyData);
 

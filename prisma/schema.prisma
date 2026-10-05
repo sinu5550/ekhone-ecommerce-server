@@ -205,6 +205,9 @@ model Product {
   wishlists         Wishlist[]
   productVariants   ProductVariant[]
   collections       ProductCollection[]
+  landingPages      LandingPage[]       @relation("LandingMainProduct")
+  landingOrderBumps LandingPage[]       @relation("LandingOrderBumpProduct")
+  heroSliders       HeroSlider[]
 
   @@index([productName])
   @@index([sku])
@@ -246,6 +249,7 @@ model ProductVariant {
   productId  Int
   sku        String      @unique
   price      Decimal     @db.Decimal(10, 2)
+  costPrice  Decimal?    @default(0) @db.Decimal(10, 2)
   quantity   Int         @default(0)
   attributes Json
   image      String?
@@ -761,14 +765,20 @@ model Hero {
 }
 
 model HeroSlider {
-  id        Int    @id @default(autoincrement())
-  sub_title String
-  title     String
-  image     String
-  link      String
+  id           Int      @id @default(autoincrement())
+  badge        String?  // e.g. "BANGLADESH'S PREMIUM STORE" or "TOP OFFER"
+  title        String
+  sub_title    String
+  image        String
+  link         String?  // Button link e.g. "/product/..."
+  categoryLink String?  // Optional browse categories link
+  productId    Int?
+  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([productId])
 }
 
 model TopPickSeason {
@@ -1249,3 +1259,47 @@ model AccountTransaction {
   @@index([shipmentId])
   @@map("AccountTransactions")
 }
+
+model LandingPage {
+  id                    Int       @id @default(autoincrement())
+  productId             Int
+  product               Product   @relation("LandingMainProduct", fields: [productId], references: [id], onDelete: Cascade)
+  
+  // Order Bump Add-on Product configuration
+  orderBumpProductId    Int?
+  orderBumpProduct      Product?  @relation("LandingOrderBumpProduct", fields: [orderBumpProductId], references: [id], onDelete: SetNull)
+  orderBumpTitle        String?   // Custom promotional title e.g. "স্পেশাল অফার: সাথে নিন আমাদের প্রিমিয়াম ঘি"
+  orderBumpSubtitle     String?   // Short persuasion copy e.g. "মূল পণ্যের সাথে নিলে পাচ্ছেন অতিরিক্ত ২০০ টাকা বিশেষ ছাড়!"
+  orderBumpDiscount     Decimal?  @default(0.00) @db.Decimal(10, 2) // Extra discount when bump product is selected
+  orderBumpPrice        Decimal?  @db.Decimal(10, 2) // Optional custom bump price (defaults to product salePrice)
+
+  slug                  String    @unique
+  pageTitle             String    // Headline, e.g. "প্রতিদিনের রান্নায় আনুন খাঁটি ঘ্রাণ ও স্বাদ"
+  subTitle              String?   @db.Text // Tagline / hook
+  badgeText             String?   // e.g. "১০০% খাঁটি ও নিরাপদ"
+  videoUrl              String?   // YouTube embed or Cloudinary video link
+  bannerImages          Json?     // Array of gallery image URLs
+  whyChooseUsTitle      String?   @default("কেন আমাদের পণ্য সেরা?")
+  features              Json?     // [{ title, desc, icon }]
+  trustPoints           Json?     // [{ title, desc }] or string[]
+  variantDiscounts      Json?     // { "<variantId>": discountAmountInTaka }
+  highlightsTitle       String?   @default("পণ্যটির আকর্ষণীয় ব্যবহার ও বৈশিষ্ট্য")
+  highlights            Json?     // [{ title, image, desc }]
+  reviews               Json?     // [{ name, rating, comment, date }]
+  insideDhakaDelivery   Decimal?  @default(70.00) @db.Decimal(10, 2)
+  outsideDhakaDelivery  Decimal?  @default(130.00) @db.Decimal(10, 2)
+  offerPrice            Decimal?  @db.Decimal(10, 2) // Optional campaign special discount price
+  urgencyText           String?   @default("অফারটি সীমিত সময়ের জন্য! এখনই অর্ডার করুন")
+  fakeOrderCounter      Int?      @default(120) // Display count e.g. "১২০ জন ইতিমধ্যে অর্ডার করেছেন"
+  themeColor            String?   @default("#F45116")
+  isPublished           Boolean   @default(true)
+  viewsCount            Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([productId])
+  @@index([orderBumpProductId])
+  @@map("LandingPages")
+}
+

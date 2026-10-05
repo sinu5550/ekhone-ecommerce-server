@@ -5,14 +5,37 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 // Create Hero Slider
 const createHeroSlider = async (req, res) => {
     try {
-        const { sub_title, title, image, link } = req.body;
+        const { sub_title, title, image, link, badge, categoryLink, productId } = req.body;
 
         const newHeroSlider = await prisma.heroSlider.create({
             data: {
                 sub_title: sub_title || '',
                 title: title || '',
                 image: image || '',
-                link: link || ''
+                link: link || '',
+                badge: badge || null,
+                categoryLink: categoryLink || null,
+                productId: productId ? parseInt(productId) : null
+            },
+            include: {
+                product: {
+                    select: {
+                        id: true,
+                        slug: true,
+                        productName: true,
+                        price: true,
+                        images: true,
+                        sku: true,
+                        productVariants: {
+                            select: {
+                                id: true,
+                                image: true,
+                                price: true,
+                                attributes: true
+                            }
+                        }
+                    }
+                }
             }
         });
 
@@ -27,7 +50,27 @@ const createHeroSlider = async (req, res) => {
 const getAllHeroSliders = async (req, res) => {
     try {
         const heroSliders = await prisma.heroSlider.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            include: {
+                product: {
+                    select: {
+                        id: true,
+                        slug: true,
+                        productName: true,
+                        price: true,
+                        images: true,
+                        sku: true,
+                        productVariants: {
+                            select: {
+                                id: true,
+                                image: true,
+                                price: true,
+                                attributes: true
+                            }
+                        }
+                    }
+                }
+            }
         });
 
         return successResponse(res, heroSliders);
@@ -44,7 +87,27 @@ const getHeroSliderById = async (req, res) => {
         if (isNaN(id) || id <= 0) return errorResponse(res, 'Invalid ID format', 400);
 
         const heroSlider = await prisma.heroSlider.findUnique({
-            where: { id }
+            where: { id },
+            include: {
+                product: {
+                    select: {
+                        id: true,
+                        slug: true,
+                        productName: true,
+                        price: true,
+                        images: true,
+                        sku: true,
+                        productVariants: {
+                            select: {
+                                id: true,
+                                image: true,
+                                price: true,
+                                attributes: true
+                            }
+                        }
+                    }
+                }
+            }
         });
 
         if (!heroSlider) return errorResponse(res, 'Hero slider not found', 404);
@@ -62,7 +125,7 @@ const updateHeroSlider = async (req, res) => {
         const id = parseInt(req.params.id);
         if (isNaN(id) || id <= 0) return errorResponse(res, 'Invalid ID format', 400);
 
-        const { sub_title, title, image, link } = req.body;
+        const { sub_title, title, image, link, badge, categoryLink, productId } = req.body;
 
         // Check if hero slider exists
         const existingHeroSlider = await prisma.heroSlider.findUnique({
@@ -77,7 +140,30 @@ const updateHeroSlider = async (req, res) => {
                 sub_title: sub_title !== undefined ? sub_title : existingHeroSlider.sub_title,
                 title: title !== undefined ? title : existingHeroSlider.title,
                 image: image !== undefined ? image : existingHeroSlider.image,
-                link: link !== undefined ? link : existingHeroSlider.link
+                link: link !== undefined ? link : existingHeroSlider.link,
+                badge: badge !== undefined ? badge : existingHeroSlider.badge,
+                categoryLink: categoryLink !== undefined ? categoryLink : existingHeroSlider.categoryLink,
+                productId: productId !== undefined ? (productId ? parseInt(productId) : null) : existingHeroSlider.productId
+            },
+            include: {
+                product: {
+                    select: {
+                        id: true,
+                        slug: true,
+                        productName: true,
+                        price: true,
+                        images: true,
+                        sku: true,
+                        productVariants: {
+                            select: {
+                                id: true,
+                                image: true,
+                                price: true,
+                                attributes: true
+                            }
+                        }
+                    }
+                }
             }
         });
 
