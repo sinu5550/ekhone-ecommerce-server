@@ -201,6 +201,7 @@ const getAllProduct = async (req, res) => {
             subCategoryId,
             categoryId,
             categoryName,
+            category,
             mainCategoryId,
             mainCategoryName,
             status,
@@ -258,10 +259,18 @@ const getAllProduct = async (req, res) => {
             },
         };
 
+        const targetCategory = categoryName || category;
         if (subCategoryId) subCategoryConditions.id = parseInt(subCategoryId);
         if (subCategoryName) subCategoryConditions.name = { equals: subCategoryName, mode: "insensitive" };
-        if (categoryId) subCategoryConditions.category.id = parseInt(categoryId);
-        if (categoryName) subCategoryConditions.category.name = { equals: categoryName, mode: "insensitive" };
+        if (categoryId) {
+            subCategoryConditions.category.id = parseInt(categoryId);
+        } else if (targetCategory) {
+            if (!isNaN(parseInt(targetCategory)) && targetCategory.toString() === parseInt(targetCategory).toString()) {
+                subCategoryConditions.category.id = parseInt(targetCategory);
+            } else {
+                subCategoryConditions.category.name = { equals: targetCategory, mode: "insensitive" };
+            }
+        }
         if (mainCategoryId) subCategoryConditions.category.mainCategory.id = parseInt(mainCategoryId);
         if (mainCategoryName) subCategoryConditions.category.mainCategory.name = { equals: mainCategoryName, mode: "insensitive" };
 
