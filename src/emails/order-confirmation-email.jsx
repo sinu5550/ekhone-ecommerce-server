@@ -1,6 +1,8 @@
 const React = require('react');
 const { Html, Head, Body, Container, Section, Text, Hr, Row, Column } = require('@react-email/components');
-const LOGO_BASE64 = require('./logoBase64');
+
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://ekhone.com').replace(/\/+$/, '');
+const LOGO_URL = `${FRONTEND_URL}/ekhone.png`;
 
 const OrderConfirmationEmail = ({
     orderNumber,
@@ -57,7 +59,7 @@ const OrderConfirmationEmail = ({
                     Section,
                     { style: headerStyle },
                     React.createElement('img', {
-                        src: LOGO_BASE64,
+                        src: LOGO_URL,
                         alt: 'Ekhone Logo',
                         style: logoStyle
                     }),
