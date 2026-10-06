@@ -159,7 +159,7 @@ exports.sendOrderConfirmation = async (req, res) => {
             to: customer?.email,
             subject: `Order Confirmation #${orderNumber} - Ekhone`,
             html: emailHtml,
-            replyTo: 'support@ekhone.com'
+            replyTo: 'info@ekhone.com'
         };
 
         // Add PDF attachment if generated
