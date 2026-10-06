@@ -637,72 +637,72 @@ const createOrder = async (req, res) => {
 // ============================================
 async function sendOrderConfirmationEmail(orderData) {
     try {
-        // Prepare email data
+        const { sendOrderConfirmationDirect } = require('./emailController');
+        if (typeof sendOrderConfirmationDirect === 'function') {
+            await sendOrderConfirmationDirect(orderData);
+            console.log(`Order confirmation email sent for order #${orderData.orderNumber}`);
+            return;
+        }
+
         const emailData = {
             orderNumber: orderData.orderNumber,
             customer: {
-                fullName: orderData.customer.fullName,
-                email: orderData.customer.email,
-                phone: orderData.customer.phone
+                fullName: orderData.customer?.fullName,
+                email: orderData.customer?.email,
+                phone: orderData.customer?.phone
             },
             shippingAddress: {
-                recipientName: orderData.shippingAddress.recipientName,
-                phoneNumber: orderData.shippingAddress.phoneNumber,
-                address: orderData.shippingAddress.address,
-                upazila: orderData.shippingAddress.upazila,
-                postalCode: orderData.shippingAddress.postalCode,
-                district: orderData.shippingAddress.district,
-                city: orderData.shippingAddress.city,
-                country: orderData.shippingAddress.country
+                recipientName: orderData.shippingAddress?.recipientName,
+                phoneNumber: orderData.shippingAddress?.phoneNumber,
+                address: orderData.shippingAddress?.address,
+                upazila: orderData.shippingAddress?.upazila,
+                postalCode: orderData.shippingAddress?.postalCode,
+                district: orderData.shippingAddress?.district,
+                city: orderData.shippingAddress?.city,
+                country: orderData.shippingAddress?.country
             },
-            orderItems: orderData.orderItems.map(item => ({
+            orderItems: (orderData.orderItems || []).map(item => ({
                 product: {
                     productName: item.product?.productName || 'Product',
                     sku: item.product?.sku || item.sku
                 },
                 sku: item.sku,
                 quantity: item.quantity,
-                unitPrice: parseFloat(item.unitPrice),
-                lineTotal: parseFloat(item.lineTotal)
+                unitPrice: parseFloat(item.unitPrice || 0),
+                lineTotal: parseFloat(item.lineTotal || 0)
             })),
             orderDate: orderData.orderDate,
-            totalAmount: parseFloat(orderData.totalAmount),
-            discount: parseFloat(orderData.discount),
-            voucher_promo: parseFloat(orderData.voucher_promo),
-            tax: parseFloat(orderData.tax),
-            shippingCost: parseFloat(orderData.shippingCost),
-            grandTotal: parseFloat(orderData.grandTotal),
-            paidAmount: parseFloat(orderData.paidAmount),
-            dueAmount: parseFloat(orderData.dueAmount),
+            totalAmount: parseFloat(orderData.totalAmount || 0),
+            discount: parseFloat(orderData.discount || 0),
+            voucher_promo: parseFloat(orderData.voucher_promo || 0),
+            tax: parseFloat(orderData.tax || 0),
+            shippingCost: parseFloat(orderData.shippingCost || 0),
+            grandTotal: parseFloat(orderData.grandTotal || 0),
+            paidAmount: parseFloat(orderData.paidAmount || 0),
+            dueAmount: parseFloat(orderData.dueAmount || 0),
             note: orderData.note,
             paymentMethod: orderData.paymentMethod,
             status: orderData.status
         };
 
-        // Add bundle items if any
         if (orderData.bundleOrderItems?.length > 0) {
             emailData.bundleItems = orderData.bundleOrderItems.map(bundleItem => ({
                 bundleName: bundleItem.bundle?.name,
                 quantity: bundleItem.quantity,
-                unitPrice: parseFloat(bundleItem.unitPrice),
-                lineTotal: parseFloat(bundleItem.lineTotal)
+                unitPrice: parseFloat(bundleItem.unitPrice || 0),
+                lineTotal: parseFloat(bundleItem.lineTotal || 0)
             }));
         }
 
-        await axios.post(`${process.env.API_URL}/api/emails/order-confirmation`, emailData,
-            {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 10000
-            }
-        );
+        const apiBase = process.env.API_URL || 'http://localhost:5000';
+        await axios.post(`${apiBase}/api/emails/order-confirmation`, emailData, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000
+        });
 
         console.log(`Order confirmation email sent for order #${orderData.orderNumber}`);
     } catch (error) {
-        // Just log the error, don't throw
         console.error(`Failed to send order confirmation email for order #${orderData.orderNumber}:`, error.message);
-
-        // Optional: You could log to database here for retry later
-        // await logFailedEmail(orderData.orderNumber, error.message);
     }
 }
 

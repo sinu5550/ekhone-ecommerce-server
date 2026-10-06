@@ -66,17 +66,16 @@ exports.signUp = async (req, res) => {
 
         // 6. Send verification email
         try {
-            await axios.post(
-                `${process.env.API_URL}/api/emails`,
-                {
-                    type: 'verification',
-                    email: email,
-                    password: password,
-                    isPasswordReset: false,
-                    origin: req.headers.origin || process.env.FRONTEND_URL
-                }
-            );
+            const { sendEmailDirect } = require('./emailController');
+            await sendEmailDirect({
+                type: 'verification',
+                email: email,
+                password: password,
+                isPasswordReset: false,
+                origin: req.headers.origin || process.env.FRONTEND_URL
+            });
         } catch (emailError) {
+            console.error('❌ Direct verification email failed:', emailError);
             // If email fails, delete the user
             await supabase.auth.admin.deleteUser(authData.user.id);
 
@@ -119,15 +118,13 @@ exports.resendOtp = async (req, res) => {
             return res.status(400).json({ error: 'Email is required' });
         }
 
-        // Send verification email again
-        await axios.post(
-            `${process.env.API_URL}/api/emails`,
-            {
-                type: 'verification',
-                email: email,
-                isPasswordReset: false
-            }
-        );
+        const { sendEmailDirect } = require('./emailController');
+        await sendEmailDirect({
+            type: 'verification',
+            email: email,
+            isPasswordReset: false,
+            origin: req.headers.origin || process.env.FRONTEND_URL
+        });
 
         return res.json({
             success: true,
@@ -136,7 +133,7 @@ exports.resendOtp = async (req, res) => {
 
     } catch (error) {
         console.error('Resend OTP error:', error);
-        return res.status(500).json({ error: 'Failed to resend code' });
+        return res.status(500).json({ error: error.message || 'Failed to resend code' });
     }
 };
 
@@ -174,20 +171,12 @@ exports.verifyOtp = async (req, res) => {
         // If it's not a password reset, send welcome email
         if (!isPasswordReset && data.user) {
             try {
-             
-                await axios.post(
-                    `${process.env.API_URL}/api/emails`, 
-                    {
-                        type: 'welcome',
-                        email: email,
-                        origin: req.headers.origin || process.env.FRONTEND_URL
-                    },
-                    {
-                        headers: { 'Content-Type': 'application/json' },
-                        timeout: 5000
-                    }
-                );
-              
+                const { sendEmailDirect } = require('./emailController');
+                await sendEmailDirect({
+                    type: 'welcome',
+                    email: email,
+                    origin: req.headers.origin || process.env.FRONTEND_URL
+                });
             } catch (emailError) {
                 console.error('⚠️ Welcome email error:', emailError.message);
                 // Continue even if welcome email fails
@@ -329,27 +318,18 @@ exports.requestPasswordReset = async (req, res) => {
             });
         }
 
-        // Send password reset email via your email service
         try {
             console.log('📧 Sending password reset email...');
-            await axios.post(
-                `${process.env.API_URL}/api/emails`, // FIXED: Changed from /api/resend to /api/emails
-                {
-                    type: 'verification',
-                    email: email,
-                    isPasswordReset: true,
-                    origin: req.headers.origin || process.env.FRONTEND_URL
-                },
-                {
-                    headers: { 'Content-Type': 'application/json' },
-                    timeout: 10000
-                }
-            );
-
+            const { sendEmailDirect } = require('./emailController');
+            await sendEmailDirect({
+                type: 'verification',
+                email: email,
+                isPasswordReset: true,
+                origin: req.headers.origin || process.env.FRONTEND_URL
+            });
             console.log('✅ Password reset email sent');
         } catch (emailError) {
-            console.error('❌ Password reset email failed:', emailError.response?.data || emailError.message);
-            // Don't reveal if email exists or not for security
+            console.error('❌ Password reset email failed:', emailError.message);
         }
 
         return res.status(200).json({
@@ -419,21 +399,14 @@ exports.updatePassword = async (req, res) => {
             });
         }
 
-
         // Send confirmation email
         try {
-            await axios.post(
-                `${process.env.API_URL}/api/emails`, 
-                {
-                    type: 'password-reset-confirmation',
-                    email: data.user.email,
-                    origin: req.headers.origin || process.env.FRONTEND_URL
-                },
-                {
-                    headers: { 'Content-Type': 'application/json' },
-                    timeout: 5000
-                }
-            );
+            const { sendEmailDirect } = require('./emailController');
+            await sendEmailDirect({
+                type: 'password-reset-confirmation',
+                email: data.user.email,
+                origin: req.headers.origin || process.env.FRONTEND_URL
+            });
         } catch (emailError) {
             console.error('⚠️ Confirmation email error:', emailError.message);
         }

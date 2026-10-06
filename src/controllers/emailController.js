@@ -25,13 +25,134 @@ const emailTemplates = {
 };
 
 const fromAddresses = {
-    verification: 'Ahmed Siyan <info@ahmedsiyan.online>',
-    welcome: 'Ahmed Siyan <info@ahmedsiyan.online>',
-    passwordResetConfirmation: 'Ahmed Siyan <auth@ahmedsiyan.online>',
-    orderConfirmation: 'Ahmed Siyan <info@ahmedsiyan.online>',
-    bulk: 'Ahmed Siyan <noreply@ahmedsiyan.online>'
+    verification: process.env.EMAIL_FROM_VERIFICATION || 'Ahmed Siyan <info@ahmedsiyan.online>',
+    welcome: process.env.EMAIL_FROM_WELCOME || 'Ahmed Siyan <info@ahmedsiyan.online>',
+    passwordResetConfirmation: process.env.EMAIL_FROM_RESET || 'Ahmed Siyan <auth@ahmedsiyan.online>',
+    orderConfirmation: process.env.EMAIL_FROM_ORDER || 'Ahmed Siyan <info@ahmedsiyan.online>',
+    bulk: process.env.EMAIL_FROM_BULK || 'Ahmed Siyan <noreply@ahmedsiyan.online>'
 };
 
+// Direct function to send order confirmation without HTTP roundtrips
+exports.sendOrderConfirmationDirect = async (orderData) => {
+    const {
+        orderNumber,
+        customer,
+        shippingAddress,
+        orderItems,
+        orderDate,
+        totalAmount,
+        discount,
+        voucher_promo,
+        tax,
+        shippingCost,
+        grandTotal,
+        paidAmount,
+        dueAmount,
+        note,
+        paymentMethod,
+        status
+    } = orderData;
+
+    if (!orderNumber || !customer?.email || !orderItems || orderItems.length === 0) {
+        console.warn('sendOrderConfirmationDirect: Missing required order details');
+        return;
+    }
+
+    const estimatedDelivery = new Date(new Date(orderDate || Date.now()).getTime() + 5 * 24 * 60 * 60 * 1000)
+        .toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+    const productsForPdf = orderItems.map(item => ({
+        name: item.product?.productName || item.productName || 'Product',
+        sku: item.sku || item.product?.sku || 'N/A',
+        quantity: item.quantity,
+        price: parseFloat(item.unitPrice || 0),
+        lineTotal: parseFloat(item.lineTotal || 0)
+    }));
+
+    let pdfAttachment = null;
+    try {
+        const pdfBuffer = await PDFGenerator.generateOrderReceipt({
+            orderNumber,
+            customerName: customer?.fullName,
+            customerEmail: customer?.email,
+            customerPhone: customer?.phone,
+            orderDate: new Date(orderDate || Date.now()).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }),
+            products: productsForPdf,
+            subtotal: parseFloat(totalAmount || 0),
+            discount: parseFloat(discount || 0),
+            voucher_promo: parseFloat(voucher_promo || 0),
+            tax: parseFloat(tax || 0),
+            shippingCost: parseFloat(shippingCost || 0),
+            grandTotal: parseFloat(grandTotal || 0),
+            paidAmount: parseFloat(paidAmount || 0),
+            dueAmount: parseFloat(dueAmount || 0),
+            paymentMethod,
+            shippingAddress: {
+                recipientName: shippingAddress?.recipientName,
+                phoneNumber: shippingAddress?.phoneNumber,
+                address: shippingAddress?.address,
+                city: shippingAddress?.city,
+                upazila: shippingAddress?.upazila,
+                district: shippingAddress?.district,
+                postalCode: shippingAddress?.postalCode,
+                country: shippingAddress?.country || 'Bangladesh'
+            },
+            note
+        });
+
+        pdfAttachment = {
+            filename: `Ekhone_Order_${orderNumber}.pdf`,
+            content: pdfBuffer.toString('base64'),
+            contentType: 'application/pdf'
+        };
+    } catch (pdfError) {
+        console.error('Error generating PDF:', pdfError);
+    }
+
+    const emailHtml = await render(
+        emailTemplates.orderConfirmation({
+            orderNumber,
+            customer,
+            shippingAddress,
+            orderItems,
+            orderDate,
+            totalAmount: parseFloat(totalAmount || 0),
+            discount: parseFloat(discount || 0),
+            voucher_promo: parseFloat(voucher_promo || 0),
+            tax: parseFloat(tax || 0),
+            shippingCost: parseFloat(shippingCost || 0),
+            grandTotal: parseFloat(grandTotal || 0),
+            paidAmount: parseFloat(paidAmount || 0),
+            dueAmount: parseFloat(dueAmount || 0),
+            note,
+            paymentMethod,
+            status,
+            estimatedDelivery
+        })
+    );
+
+    const emailOptions = {
+        from: fromAddresses.orderConfirmation,
+        to: customer?.email,
+        subject: `Order Confirmation #${orderNumber} - Ekhone`,
+        html: emailHtml,
+        replyTo: 'info@ekhone.com'
+    };
+
+    if (pdfAttachment) {
+        emailOptions.attachments = [pdfAttachment];
+    }
+
+    return await resend.emails.send(emailOptions);
+};
 
 // Add this new function for sending order confirmation
 exports.sendOrderConfirmation = async (req, res) => {
@@ -187,6 +308,93 @@ exports.sendOrderConfirmation = async (req, res) => {
     }
 };
 
+// Direct internal send email function
+exports.sendEmailDirect = async ({ type, email, password, isPasswordReset, origin }) => {
+    if (!email || !type) {
+        throw new Error('Email and type are required');
+    }
+
+    switch (type) {
+        case 'verification': {
+            if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+                throw new Error('Supabase service configuration error');
+            }
+
+            const { data: linkData, error } = await supabase.auth.admin.generateLink({
+                type: isPasswordReset ? 'recovery' : 'signup',
+                email,
+                password: isPasswordReset ? undefined : password,
+            });
+
+            if (error) {
+                console.error('❌ Supabase generateLink error:', error);
+                throw new Error(error.message || 'Failed to generate verification link');
+            }
+
+            if (!linkData?.properties?.email_otp) {
+                throw new Error('Failed to generate OTP');
+            }
+
+            if (!process.env.RESEND_API_KEY) {
+                throw new Error('RESEND_API_KEY is not configured');
+            }
+
+            const emailHtml = await render(
+                emailTemplates.verification({
+                    otp: linkData.properties.email_otp,
+                    isPasswordReset: !!isPasswordReset,
+                })
+            );
+
+            return await resend.emails.send({
+                from: fromAddresses.verification,
+                to: email,
+                subject: isPasswordReset
+                    ? 'Reset your password - Ekhone'
+                    : 'Verify your email - Ekhone',
+                html: emailHtml,
+            });
+        }
+
+        case 'welcome': {
+            const dashboardUrl = origin ? `${origin}/my-account` : 'https://ekhone.com/my-account';
+            const welcomeEmailHtml = await render(
+                emailTemplates.welcome({
+                    userEmail: email,
+                    dashboardUrl,
+                })
+            );
+
+            return await resend.emails.send({
+                from: fromAddresses.welcome,
+                to: email,
+                subject: 'Welcome to Ekhone! 🎉',
+                html: welcomeEmailHtml,
+            });
+        }
+
+        case 'password-reset-confirmation': {
+            const loginUrl = origin ? `${origin}/login` : 'https://ekhone.com/login';
+            const resetEmailHtml = await render(
+                emailTemplates.passwordResetConfirmation({
+                    userEmail: email,
+                    loginUrl,
+                })
+            );
+
+            return await resend.emails.send({
+                from: fromAddresses.passwordResetConfirmation,
+                to: email,
+                subject: 'Your password has been reset - Ekhone',
+                html: resetEmailHtml,
+            });
+        }
+
+        default:
+            throw new Error('Invalid email type');
+    }
+};
+
 // Update your existing sendEmail function
 exports.sendEmail = async (req, res) => {
     try {
@@ -199,119 +407,24 @@ exports.sendEmail = async (req, res) => {
             });
         }
 
-        let data;
-
-        switch (type) {
-            case 'verification':
-                if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-                    return res.status(500).json({
-                        success: false,
-                        error: 'Service configuration error'
-                    });
-                }
-
-                const { data: linkData, error } = await supabase.auth.admin.generateLink({
-                    type: isPasswordReset ? 'recovery' : 'signup',
-                    email,
-                    password: isPasswordReset ? undefined : password,
-                });
-
-                if (error) {
-                    console.error('❌ Supabase generateLink error:', error);
-                    return res.status(400).json({
-                        success: false,
-                        error: error.message || 'Failed to generate verification link'
-                    });
-                }
-
-                if (!linkData?.properties?.email_otp) {
-                    return res.status(400).json({
-                        success: false,
-                        error: 'Failed to generate OTP'
-                    });
-                }
-
-                if (!process.env.RESEND_API_KEY) {
-                    return res.status(500).json({
-                        success: false,
-                        error: 'Email service configuration error'
-                    });
-                }
-
-                const emailHtml = await render(
-                    emailTemplates.verification({
-                        otp: linkData.properties.email_otp,
-                        isPasswordReset: !!isPasswordReset,
-                    })
-                );
-
-                data = await resend.emails.send({
-                    from: fromAddresses.verification,
-                    to: email,
-                    subject: isPasswordReset
-                        ? 'Reset your password - Ekhone'
-                        : 'Verify your email - Ekhone',
-                    html: emailHtml,
-                });
-                break;
-
-            case 'welcome':
-                const dashboardUrl = origin
-                    ? `${origin}/my-account`
-                    : `${req.protocol}://${req.get('host')}/my-account`;
-
-                const welcomeEmailHtml = await render(
-                    emailTemplates.welcome({
-                        userEmail: email,
-                        dashboardUrl,
-                    })
-                );
-
-                data = await resend.emails.send({
-                    from: fromAddresses.welcome,
-                    to: email,
-                    subject: 'Welcome to Ekhone! 🎉',
-                    html: welcomeEmailHtml,
-                });
-                break;
-
-            case 'password-reset-confirmation':
-                const loginUrl = origin
-                    ? `${origin}/login`
-                    : `${req.protocol}://${req.get('host')}/login`;
-
-                const resetEmailHtml = await render(
-                    emailTemplates.passwordResetConfirmation({
-                        userEmail: email,
-                        loginUrl,
-                    })
-                );
-
-                data = await resend.emails.send({
-                    from: fromAddresses.passwordResetConfirmation,
-                    to: email,
-                    subject: 'Your password has been reset - Ekhone',
-                    html: resetEmailHtml,
-                });
-                break;
-
-            case 'order-confirmation':
-                // This case can call the sendOrderConfirmation function
-                // or you can handle it here
-                return await exports.sendOrderConfirmation(req, res);
-
-            default:
-                return res.status(400).json({
-                    success: false,
-                    error: 'Invalid email type'
-                });
+        if (type === 'order-confirmation') {
+            return await exports.sendOrderConfirmation(req, res);
         }
+
+        await exports.sendEmailDirect({
+            type,
+            email,
+            password,
+            isPasswordReset,
+            origin: origin || req.headers.origin
+        });
 
         return res.status(200).json({
             success: true,
             message: 'Email sent successfully'
         });
     } catch (error) {
+        console.error('sendEmail API error:', error);
         let statusCode = 500;
         if (error.message.includes('template') || error.message.includes('configuration')) {
             statusCode = 503;
@@ -319,11 +432,10 @@ exports.sendEmail = async (req, res) => {
 
         return res.status(statusCode).json({
             success: false,
-            error: 'Failed to send email'
+            error: error.message || 'Failed to send email'
         });
     }
 };
-
 
 exports.sendBulkEmail = async (req, res) => {
     try {
