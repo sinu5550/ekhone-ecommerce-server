@@ -1,10 +1,12 @@
 // services/pdfGenerator.js
 const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
 const https = require('https');
 const http = require('http');
 
-
-const LOGO_URL = 'https://res.cloudinary.com/dddwxyeod/image/upload/v1791266680/kxqzfzinzbnhecdcqxiq.png';
+const LOCAL_LOGO_PATH = path.join(__dirname, '../../public/ekhone.png');
+const FALLBACK_LOGO_URL = 'https://res.cloudinary.com/dddwxyeod/image/upload/v1791266680/kxqzfzinzbnhecdcqxiq.png';
 
 /**
  * Fetch a remote image and return a Buffer.
@@ -25,13 +27,24 @@ function fetchImageBuffer(url) {
     });
 }
 
+function getLocalLogoBuffer() {
+    try {
+        if (fs.existsSync(LOCAL_LOGO_PATH)) {
+            return fs.readFileSync(LOCAL_LOGO_PATH);
+        }
+    } catch (e) {
+        console.error('Error reading local logo:', e);
+    }
+    return null;
+}
+
 class PDFGenerator {
 
     static async generateOrderReceipt(orderData) {
 
         const logoBuffer = orderData.logoBuffer instanceof Buffer
             ? orderData.logoBuffer
-            : await fetchImageBuffer(LOGO_URL);
+            : (getLocalLogoBuffer() || await fetchImageBuffer(FALLBACK_LOGO_URL));
 
         return new Promise((resolve, reject) => {
             try {

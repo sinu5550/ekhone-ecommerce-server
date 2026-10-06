@@ -1,6 +1,6 @@
-// emails/order-confirmation-email.jsx
 const React = require('react');
 const { Html, Head, Body, Container, Section, Text, Hr, Row, Column } = require('@react-email/components');
+const LOGO_BASE64 = require('./logoBase64');
 
 const OrderConfirmationEmail = ({
     orderNumber,
@@ -57,7 +57,7 @@ const OrderConfirmationEmail = ({
                     Section,
                     { style: headerStyle },
                     React.createElement('img', {
-                        src: 'https://res.cloudinary.com/dddwxyeod/image/upload/v1791266680/kxqzfzinzbnhecdcqxiq.png',
+                        src: LOGO_BASE64,
                         alt: 'Ekhone Logo',
                         style: logoStyle
                     }),

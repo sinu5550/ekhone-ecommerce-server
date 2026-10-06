@@ -1,5 +1,6 @@
 const React = require('react');
 const { Html, Head, Body, Container, Section, Text, Hr } = require('@react-email/components');
+const LOGO_BASE64 = require('./logoBase64');
 
 const WelcomeEmail = ({ userEmail, dashboardUrl }) => {
     return React.createElement(
@@ -21,7 +22,7 @@ const WelcomeEmail = ({ userEmail, dashboardUrl }) => {
                     Section,
                     { style: headerStyle },
                     React.createElement('img', {
-                        src: 'https://res.cloudinary.com/dddwxyeod/image/upload/v1791266680/kxqzfzinzbnhecdcqxiq.png',
+                        src: LOGO_BASE64,
                         alt: 'Ekhone Logo',
                         style: logoStyle
                     }),
