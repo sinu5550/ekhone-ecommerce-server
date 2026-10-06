@@ -4,7 +4,7 @@ const https = require('https');
 const http = require('http');
 
 
-const LOGO_URL = 'https://res.cloudinary.com/dn8th1rsp/image/upload/v1784815881/dazlingdivaimagelogo_vweeku.png';
+const LOGO_URL = 'https://res.cloudinary.com/dddwxyeod/image/upload/v1791266680/kxqzfzinzbnhecdcqxiq.png';
 
 /**
  * Fetch a remote image and return a Buffer.
@@ -60,16 +60,16 @@ class PDFGenerator {
 
                 // ── Colour palette ────────────────────────────────────────────
                 const C = {
-                    brand: '#6a0f1f',
-                    primary: '#1A1A1A',
+                    brand: '#F45116',
+                    primary: '#102D50',
                     secondary: '#666666',
-                    tableHead: '#3D3D3D',
+                    tableHead: '#102D50',
                     tableHeadTxt: '#FFFFFF',
-                    summHead: '#4A4A4A',
+                    summHead: '#102D50',
                     rowAlt: '#F5F5F5',
                     border: '#DEDEDE',
                     success: '#2E7D32',
-                    warning: '#C84B00',
+                    warning: '#F45116',
                 };
 
                 // ── Helpers ───────────────────────────────────────────────────

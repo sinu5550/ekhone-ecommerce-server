@@ -21,7 +21,7 @@ const VerificationEmail = ({ otp, isPasswordReset = false }) => {
                     Section,
                     { style: headerStyle },
                     React.createElement('img', {
-                        src: 'https://res.cloudinary.com/dn8th1rsp/image/upload/v1784815881/dazlingdivaimagelogo_vweeku.png',
+                        src: 'https://res.cloudinary.com/dddwxyeod/image/upload/v1791266680/kxqzfzinzbnhecdcqxiq.png',
                         alt: 'Ekhone Logo',
                         style: logoStyle
                     }),

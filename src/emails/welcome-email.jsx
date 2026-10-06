@@ -21,8 +21,8 @@ const WelcomeEmail = ({ userEmail, dashboardUrl }) => {
                     Section,
                     { style: headerStyle },
                     React.createElement('img', {
-                        src: 'https://res.cloudinary.com/dn8th1rsp/image/upload/v1784815881/dazlingdivaimagelogo_vweeku.png',
-                        alt: 'brand logo',
+                        src: 'https://res.cloudinary.com/dddwxyeod/image/upload/v1791266680/kxqzfzinzbnhecdcqxiq.png',
+                        alt: 'Ekhone Logo',
                         style: logoStyle
                     }),
                     React.createElement(
