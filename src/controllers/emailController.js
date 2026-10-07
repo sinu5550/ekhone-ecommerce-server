@@ -65,9 +65,44 @@ exports.sendOrderConfirmationDirect = async (orderData) => {
             day: 'numeric'
         });
 
-    const productsForPdf = orderItems.map(item => ({
-        name: item.product?.productName || item.productName || 'Product',
-        sku: item.sku || item.product?.sku || 'N/A',
+    const formattedOrderItems = orderItems.map(item => {
+        const variant = item.productVariant || item.variant || null;
+        let vDetails = null;
+        if (variant) {
+            const vAttrs = variant.attributes ? (typeof variant.attributes === 'string' ? JSON.parse(variant.attributes) : variant.attributes) : null;
+            if (vAttrs && typeof vAttrs === 'object') {
+                vDetails = Object.values(vAttrs).join(', ');
+            } else {
+                vDetails = variant.title || variant.name || variant.color || variant.size || null;
+            }
+        }
+        if (!vDetails && item.variantType) {
+            vDetails = item.variantType;
+        }
+
+        const rawName = item.product?.productName || item.productName || item.name || 'Product';
+        let displayName = rawName;
+        if (vDetails && !rawName.includes(`(${vDetails})`)) {
+            displayName = `${rawName} (${vDetails})`;
+        }
+
+        const finalSku = item.sku || variant?.sku || item.product?.sku || 'N/A';
+
+        return {
+            ...item,
+            product: {
+                ...(item.product || {}),
+                productName: displayName,
+                sku: finalSku
+            },
+            productName: displayName,
+            sku: finalSku
+        };
+    });
+
+    const productsForPdf = formattedOrderItems.map(item => ({
+        name: item.productName,
+        sku: item.sku,
         quantity: item.quantity,
         price: parseFloat(item.unitPrice || 0),
         lineTotal: parseFloat(item.lineTotal || 0)
@@ -122,7 +157,7 @@ exports.sendOrderConfirmationDirect = async (orderData) => {
             orderNumber,
             customer,
             shippingAddress,
-            orderItems,
+            orderItems: formattedOrderItems,
             orderDate,
             totalAmount: parseFloat(totalAmount || 0),
             discount: parseFloat(discount || 0),
@@ -194,10 +229,45 @@ exports.sendOrderConfirmation = async (req, res) => {
                 day: 'numeric'
             });
 
-        // Format products for PDF (ensure consistent structure)
-        const productsForPdf = orderItems.map(item => ({
-            name: item.productName || item.product?.productName || 'Product',
-            sku: item.sku || item.product?.sku || 'N/A',
+        // Format products for PDF and email (ensure consistent structure with parentheses for variant)
+        const formattedOrderItems = orderItems.map(item => {
+            const variant = item.productVariant || item.variant || null;
+            let vDetails = null;
+            if (variant) {
+                const vAttrs = variant.attributes ? (typeof variant.attributes === 'string' ? JSON.parse(variant.attributes) : variant.attributes) : null;
+                if (vAttrs && typeof vAttrs === 'object') {
+                    vDetails = Object.values(vAttrs).join(', ');
+                } else {
+                    vDetails = variant.title || variant.name || variant.color || variant.size || null;
+                }
+            }
+            if (!vDetails && item.variantType) {
+                vDetails = item.variantType;
+            }
+
+            const rawName = item.product?.productName || item.productName || item.name || 'Product';
+            let displayName = rawName;
+            if (vDetails && !rawName.includes(`(${vDetails})`)) {
+                displayName = `${rawName} (${vDetails})`;
+            }
+
+            const finalSku = item.sku || variant?.sku || item.product?.sku || 'N/A';
+
+            return {
+                ...item,
+                product: {
+                    ...(item.product || {}),
+                    productName: displayName,
+                    sku: finalSku
+                },
+                productName: displayName,
+                sku: finalSku
+            };
+        });
+
+        const productsForPdf = formattedOrderItems.map(item => ({
+            name: item.productName,
+            sku: item.sku,
             quantity: item.quantity,
             price: parseFloat(item.unitPrice || 0),
             lineTotal: parseFloat(item.lineTotal || 0)
@@ -257,7 +327,7 @@ exports.sendOrderConfirmation = async (req, res) => {
                 orderNumber,
                 customer,
                 shippingAddress,
-                orderItems,
+                orderItems: formattedOrderItems,
                 orderDate,
                 totalAmount: parseFloat(totalAmount || 0),
                 discount: parseFloat(discount || 0),
