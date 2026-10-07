@@ -196,6 +196,8 @@ const createOrder = async (req, res) => {
                     ...item,
                     productId,
                     productVariantId,
+                    sku: variant.sku || item.sku || product.sku,
+                    variant,
                     isVariant: true,
                     stockToUpdate: true,
                     actualPrice: parseFloat(variant.price || product.price)
@@ -661,16 +663,28 @@ async function sendOrderConfirmationEmail(orderData) {
                 city: orderData.shippingAddress?.city,
                 country: orderData.shippingAddress?.country
             },
-            orderItems: (orderData.orderItems || []).map(item => ({
-                product: {
-                    productName: item.product?.productName || 'Product',
-                    sku: item.product?.sku || item.sku
-                },
-                sku: item.sku,
-                quantity: item.quantity,
-                unitPrice: parseFloat(item.unitPrice || 0),
-                lineTotal: parseFloat(item.lineTotal || 0)
-            })),
+            orderItems: (orderData.orderItems || []).map(item => {
+                const variant = item.productVariant || null;
+                const vAttrs = variant?.attributes ? (typeof variant.attributes === 'string' ? JSON.parse(variant.attributes) : variant.attributes) : null;
+                const vDetails = vAttrs ? Object.values(vAttrs).join(' - ') : (variant?.color || variant?.size || null);
+                const rawName = item.product?.productName || 'Product';
+                const displayName = vDetails && !rawName.toLowerCase().includes(String(vDetails).toLowerCase())
+                    ? `${rawName} (${vDetails})`
+                    : rawName;
+                const finalSku = item.sku || variant?.sku || item.product?.sku || 'N/A';
+
+                return {
+                    product: {
+                        productName: displayName,
+                        sku: finalSku
+                    },
+                    productName: displayName,
+                    sku: finalSku,
+                    quantity: item.quantity,
+                    unitPrice: parseFloat(item.unitPrice || 0),
+                    lineTotal: parseFloat(item.lineTotal || 0)
+                };
+            }),
             orderDate: orderData.orderDate,
             totalAmount: parseFloat(orderData.totalAmount || 0),
             discount: parseFloat(orderData.discount || 0),

@@ -196,7 +196,7 @@ exports.sendOrderConfirmation = async (req, res) => {
 
         // Format products for PDF (ensure consistent structure)
         const productsForPdf = orderItems.map(item => ({
-            name: item.product?.productName || 'Product',
+            name: item.productName || item.product?.productName || 'Product',
             sku: item.sku || item.product?.sku || 'N/A',
             quantity: item.quantity,
             price: parseFloat(item.unitPrice || 0),
