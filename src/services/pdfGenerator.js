@@ -484,14 +484,27 @@ class PDFGenerator {
             });
           saY += 18;
 
+          const line1 = sa.address || "";
+          const cityUpazila = [sa.upazila, sa.city]
+            .filter(Boolean)
+            .filter((v, i, arr) => arr.indexOf(v) === i)
+            .join(", ");
+          const distDiv = [sa.district, sa.division]
+            .filter(Boolean)
+            .filter(v => v !== sa.city && v !== sa.upazila)
+            .filter((v, i, arr) => arr.indexOf(v) === i)
+            .join(", ");
+          const postal = sa.postalCode ? ` - ${sa.postalCode}` : "";
+          const line3 = distDiv || postal ? `${distDiv}${postal}`.trim() : "";
+
           [
-            sa.address || "",
-            `${sa.city || ""}${sa.upazila ? ", " + sa.upazila : ""}`,
-            `${sa.district || ""}${sa.postalCode ? " - " + sa.postalCode : ""}`,
+            line1,
+            cityUpazila,
+            line3,
             sa.country || "Bangladesh",
             `Phone: ${sa.phoneNumber || "N/A"}`,
           ].forEach((line) => {
-            if (!line.trim()) return;
+            if (!line || !line.trim()) return;
             doc
               .fontSize(8.5)
               .fillColor(C.secondary)

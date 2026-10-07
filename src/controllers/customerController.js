@@ -372,8 +372,8 @@ const addCustomerAddress = async (req, res) => {
         } = req.body;
 
         // Validate required fields
-        if (!recipientName || !phoneNumber || !address || !upazila || !district || !division) {
-            return errorResponse(res, "recipientName, phoneNumber, address, upazila, district, and division are required", 400);
+        if (!recipientName || !phoneNumber || !address) {
+            return errorResponse(res, "recipientName, phoneNumber, and address are required", 400);
         }
 
         // Validate phone number format
@@ -405,11 +405,11 @@ const addCustomerAddress = async (req, res) => {
                 recipientName,
                 phoneNumber,
                 address,
-                upazila,
-                postalCode,
-                district,
-                division,
-                city,
+                upazila: upazila || "",
+                postalCode: postalCode || "",
+                district: district || "",
+                division: division || "",
+                city: city || "",
                 country,
                 type,
                 isDefault
@@ -445,8 +445,8 @@ const updateCustomerAddress = async (req, res) => {
         } = req.body;
 
         // Validate required fields
-        if (!recipientName || !phoneNumber || !address || !upazila || !district || !division) {
-            return errorResponse(res, "recipientName, phoneNumber, address, upazila, district, and division are required", 400);
+        if (!recipientName || !phoneNumber || !address) {
+            return errorResponse(res, "recipientName, phoneNumber, and address are required", 400);
         }
 
         // Validate phone number format

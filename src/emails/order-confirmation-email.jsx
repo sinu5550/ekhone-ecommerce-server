@@ -480,21 +480,37 @@ const OrderConfirmationEmail = ({
                             React.createElement(
                                 Text,
                                 { style: addressTextStyle },
-                                shippingAddress?.recipientName || customer?.fullName,
-                                React.createElement('br'),
-                                shippingAddress?.address || 'Address not provided',
-                                React.createElement('br'),
-                                shippingAddress?.city ? `${shippingAddress.city}, ` : '',
-                                shippingAddress?.upazila || '',
-                                React.createElement('br'),
-                                shippingAddress?.district ? `${shippingAddress.district} - ` : '',
-                                shippingAddress?.postalCode || '',
-                                React.createElement('br'),
-                                shippingAddress?.country || 'Bangladesh',
-                                React.createElement('br'),
-                                React.createElement('br'),
-                                React.createElement('strong', null, 'Phone: '),
-                                shippingAddress?.phoneNumber || customer?.phone || 'Not provided'
+                                ...(() => {
+                                    const elements = [];
+                                    const name = shippingAddress?.recipientName || customer?.fullName;
+                                    if (name) elements.push(name, React.createElement('br'));
+                                    
+                                    if (shippingAddress?.address) {
+                                        elements.push(shippingAddress.address, React.createElement('br'));
+                                    }
+
+                                    // City / Upazila line
+                                    const cityUpazila = [shippingAddress?.upazila, shippingAddress?.city]
+                                        .filter(Boolean)
+                                        .filter((v, i, arr) => arr.indexOf(v) === i)
+                                        .join(', ');
+                                    if (cityUpazila) elements.push(cityUpazila, React.createElement('br'));
+
+                                    // District / Postal code / Division line
+                                    const distDiv = [shippingAddress?.district, shippingAddress?.division]
+                                        .filter(Boolean)
+                                        .filter(v => v !== shippingAddress?.city && v !== shippingAddress?.upazila)
+                                        .filter((v, i, arr) => arr.indexOf(v) === i)
+                                        .join(', ');
+                                    const postal = shippingAddress?.postalCode ? ` - ${shippingAddress.postalCode}` : '';
+                                    if (distDiv || postal) {
+                                        elements.push(`${distDiv}${postal}`, React.createElement('br'));
+                                    }
+
+                                    elements.push(shippingAddress?.country || 'Bangladesh', React.createElement('br'), React.createElement('br'));
+                                    elements.push(React.createElement('strong', null, 'Phone: '), shippingAddress?.phoneNumber || customer?.phone || 'Not provided');
+                                    return elements;
+                                })()
                             )
                         ),
                         React.createElement(
