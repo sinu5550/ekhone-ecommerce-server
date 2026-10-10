@@ -282,15 +282,61 @@ const getAllProduct = async (req, res) => {
             if (maxPrice) where.price.lte = parseFloat(maxPrice);
         }
 
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const take = parseInt(limit);
+
         if (search) {
             where.OR = [
                 { productName: { contains: search, mode: "insensitive" } },
                 { sku: { contains: search, mode: "insensitive" } },
             ];
-        }
 
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-        const take = parseInt(limit);
+            // Fast search query path - lightweight & ultra-fast for dropdowns
+            const fastProducts = await prisma.product.findMany({
+                where,
+                select: {
+                    id: true,
+                    slug: true,
+                    productName: true,
+                    sku: true,
+                    price: true,
+                    discountType: true,
+                    discountValue: true,
+                    images: true,
+                    productType: true,
+                    productVariants: {
+                        select: {
+                            id: true,
+                            price: true,
+                            image: true,
+                            attributes: true,
+                        }
+                    },
+                    brand: { select: { name: true } },
+                    subCategory: {
+                        select: {
+                            name: true,
+                            category: { select: { name: true } }
+                        }
+                    }
+                },
+                orderBy: [
+                    { updatedAt: "desc" },
+                    { createdAt: "desc" }
+                ],
+                take,
+            });
+
+            return successResponse(res, {
+                products: fastProducts,
+                pagination: {
+                    total: fastProducts.length,
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    totalPages: 1,
+                },
+            });
+        }
 
         const [products, total] = await Promise.all([
             prisma.product.findMany({
