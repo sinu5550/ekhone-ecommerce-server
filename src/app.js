@@ -46,6 +46,7 @@ const collectionRoutes = require('./routes/collectionRoutes');
 const shipmentRoutes = require('./routes/shipmentRoutes');
 const accountingRoutes = require('./routes/accountingRoutes');
 const landingPageRoutes = require('./routes/landingPageRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 const { getAllProductForAdmin } = require("./controllers/productController");
 const authRoutes = require('./routes/authRoutes');
@@ -97,6 +98,7 @@ app.use('/api/shipments', shipmentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/accounting', accountingRoutes);
 app.use('/api/landing-page', landingPageRoutes);
+app.use('/api/ai', aiRoutes);
 
 // CMS API
 app.use('/api/hero', heroRoutes);
