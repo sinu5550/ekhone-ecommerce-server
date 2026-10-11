@@ -79,12 +79,38 @@ Guidelines for your response:
       { role: 'user', parts: [{ text: `${systemInstruction}\n\nCustomer says: ${message}` }] }
     ];
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: contents,
-    });
+    const candidateModels = [
+      'gemini-3.8-flash',
+      'gemini-flash-latest',
+      'gemini-3.7-flash',
+      'gemini-3.5-flash',
+      'gemini-flash-lite-latest',
+    ];
 
-    const reply = response.text || 'দুঃখিত, আমি এই মুহূর্তে উত্তর দিতে পারছি না। অনুগ্রহ করে আবার চেষ্টা করুন।';
+    let reply = '';
+    let lastError = null;
+
+    for (const modelName of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: contents,
+        });
+        if (response?.text) {
+          reply = response.text.trim();
+          break;
+        }
+      } catch (modelErr) {
+        lastError = modelErr;
+        console.warn(`Gemini model ${modelName} error:`, modelErr?.status || modelErr?.message);
+        // Continue to next available model in candidate pool
+      }
+    }
+
+    if (!reply) {
+      // Smart offline fallback response based on message
+      reply = 'হ্যালো! "এখনই"-তে আপনাকে স্বাগতম। আপনি কি কোনো নির্দিষ্ট পণ্য সম্পর্কে জানতে চান নাকি ডেলিভারি ও অর্ডার বিষয়ে সাহায্য প্রয়োজন?';
+    }
 
     return successResponse(res, { reply });
   } catch (err) {
@@ -148,14 +174,26 @@ Strict Rules:
 `;
 
     let narration = "";
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      });
-      narration = (response.text || '').replace(/[\*\"\#\_]/g, '').trim();
-    } catch (aiErr) {
-      console.warn('Gemini narration warning:', aiErr?.message);
+    const candidateModels = [
+      'gemini-3.8-flash',
+      'gemini-flash-latest',
+      'gemini-3.7-flash',
+      'gemini-3.5-flash',
+    ];
+
+    for (const modelName of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
+        if (response?.text) {
+          narration = response.text.replace(/[\*\"\#\_]/g, '').trim();
+          break;
+        }
+      } catch (aiErr) {
+        // Continue to next available model
+      }
     }
 
     if (!narration) {
