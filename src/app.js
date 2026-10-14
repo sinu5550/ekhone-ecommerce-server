@@ -49,6 +49,7 @@ const landingPageRoutes = require('./routes/landingPageRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const popupBannerRoutes = require('./routes/popupBannerRoutes');
 const storeSettingRoutes = require('./routes/storeSettingRoutes');
+const missingOrdersRoutes = require('./routes/missingOrdersRoutes');
 
 const { getAllProductForAdmin } = require("./controllers/productController");
 const authRoutes = require('./routes/authRoutes');
@@ -122,6 +123,7 @@ app.use('/api/testimonials', testimonialsRoutes);
 app.use('/api/enquiry-us', enquiryUsRoutes);
 app.use('/api/popup-banner', popupBannerRoutes);
 app.use('/api/store-settings', storeSettingRoutes);
+app.use('/api/missing-orders', missingOrdersRoutes);
 
 
 app.use((err, req, res, next) => {

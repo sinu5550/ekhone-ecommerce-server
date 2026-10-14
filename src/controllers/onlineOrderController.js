@@ -2,6 +2,7 @@ const prisma = require('../utils/db.js');
 const { generateNumber } = require('../utils/generateNumber.js');
 const { errorResponse, successResponse } = require("../utils/responseHandler");
 const axios = require('axios');
+const BizMationService = require('../services/bizmationService');
 
 const normalizeOrderStatus = (status) => {
     if (!status) return undefined;
@@ -615,6 +616,13 @@ const createOrder = async (req, res) => {
         });
 
         // ============================================
+        // FORWARD ORDER TO BIZMATION INVENTORY (NON-BLOCKING)
+        // ============================================
+        BizMationService.sendSuccessfulOrder(completeOrder, req).catch(err => {
+            console.error(`[BizMation] Asynchronous dispatch failed for order #${completeOrder.orderNumber}:`, err.message);
+        });
+
+        // ============================================
         // SUCCESS RESPONSE
         // ============================================
         let successMessage = "Order created successfully";
@@ -629,6 +637,12 @@ const createOrder = async (req, res) => {
 
     } catch (error) {
         console.error("Order creation error:", error);
+
+        // Forward failed/abandoned order attempt to BizMation (NON-BLOCKING)
+        BizMationService.sendFailedOrder(req.body, req).catch(err => {
+            console.error('[BizMation] Failed to forward failed order attempt:', err.message);
+        });
+
         return errorResponse(res, error.message || "Failed to create order", 500);
     }
 };
