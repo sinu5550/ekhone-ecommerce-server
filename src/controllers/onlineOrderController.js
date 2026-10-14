@@ -1196,6 +1196,29 @@ const trackOrderStatus = async (req, res) => {
 
 
 
+const recordAbandonedOrder = async (req, res) => {
+    try {
+        const body = req.body || {};
+        // Only forward if there is at least a mobile number or name
+        const rawPhone = body.phoneNumber || body.phone || body.shippingAddress?.phoneNumber || '';
+        const formattedPhone = BizMationService.formatMobileNumber(rawPhone);
+
+        if (!formattedPhone) {
+            return res.status(200).json({ success: true, message: "Ignored (no valid mobile number)" });
+        }
+
+        // Run BizMation call asynchronously so it responds instantly
+        BizMationService.sendFailedOrder(body, req).catch((err) => {
+            console.error("[BizMation] Failed to forward abandoned order:", err.message);
+        });
+
+        return res.status(200).json({ success: true, message: "Abandoned order recorded" });
+    } catch (error) {
+        console.error("Error in recordAbandonedOrder:", error);
+        return res.status(200).json({ success: true, message: "Handled" });
+    }
+};
+
 module.exports = {
     createOrder,
     getAllOrder,
@@ -1203,5 +1226,6 @@ module.exports = {
     updateOrder,
     deleteOrder,
     getOrdersWithoutInvoice,
-    trackOrderStatus
+    trackOrderStatus,
+    recordAbandonedOrder
 };

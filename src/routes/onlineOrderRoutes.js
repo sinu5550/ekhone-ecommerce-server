@@ -7,12 +7,14 @@ const {
     deleteOrder,
     createOrder,
     getOrdersWithoutInvoice,
-    trackOrderStatus
+    trackOrderStatus,
+    recordAbandonedOrder
 } = require('../controllers/onlineOrderController');
 const { authMiddleware } = require("../middlewares/authMiddleware");
 
 
 router.get('/track-status/:orderNumber', trackOrderStatus);
+router.post('/abandoned', recordAbandonedOrder);
 
 router.get('/without-invoice', authMiddleware, getOrdersWithoutInvoice);
 router.post('/', createOrder);
