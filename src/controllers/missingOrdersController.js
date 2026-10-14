@@ -151,9 +151,9 @@ const getMissingOrders = async (req, res) => {
                 });
             }
 
-            const discountAmount =
-                parseFloat(order.discount || 0) +
-                parseFloat(order.voucher_promo || 0);
+            // item.unitPrice is already the selling price (after product discount).
+            // Only additional order-level discounts (coupons, vouchers) should be in 'discount'.
+            const discountAmount = parseFloat(order.voucher_promo || 0);
 
             return {
                 reference_no: order.id,

@@ -211,13 +211,20 @@ class BizMationService {
             const checkoutUrl = req ? (req.headers.referer || req.headers.origin || '') : '';
             const uuidToken = order.orderNumber || String(order.id) || crypto.randomUUID();
 
+            // In our system:
+            // item.unitPrice is ALREADY the discounted final selling price per item (e.g. ৳3500 after ৳3000 product discount).
+            // BizMation calculates: Grand Total = (Sum of item price * quantity) - discount + delivery_charge.
+            // Therefore, 'discount' passed to BizMation must ONLY include order-level extra discounts (voucher_promo, coupons, loyalty points).
+            // If we also subtracted product-level discount here, BizMation would double-discount the order (3500 - 3000 = 500).
+            const orderLevelDiscount = parseFloat(order.voucher_promo || 0);
+
             const payload = {
                 uu_id: String(uuidToken),
                 name: String(customerName).trim(),
                 address: String(customerAddress).trim(),
                 mobile_number: mobileNumber,
                 delivery_charge: parseFloat(order.shippingCost || 0),
-                discount: parseFloat(order.discount || 0) + parseFloat(order.voucher_promo || 0),
+                discount: orderLevelDiscount,
                 check_duplicate_order: 'No',
                 user_ip: userIp,
                 user_agent: userAgent,
