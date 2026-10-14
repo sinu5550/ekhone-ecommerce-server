@@ -205,7 +205,8 @@ const getCustomerById = async (req, res) => {
                             include: {
                                 product: {
                                     select: { id: true, productName: true, images: true, price: true }
-                                }
+                                },
+                                productVariant: true
                             }
                         }
                     }

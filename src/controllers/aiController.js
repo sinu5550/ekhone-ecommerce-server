@@ -15,66 +15,117 @@ const chatWithAI = async (req, res) => {
       return errorResponse(res, 'Message is required', 400);
     }
 
-    // 1. Fetch store product context to ground the AI with real store data
+    // Helper to calculate discounted price
+    const getFinalPrice = (priceNum, discType, discVal) => {
+      const p = parseFloat(priceNum) || 0;
+      const d = parseFloat(discVal) || 0;
+      if (d <= 0) return p;
+      if (discType === 'Fixed') return Math.max(0, p - d);
+      return Math.max(0, Math.round(p - (p * d) / 100));
+    };
+
+    // 1. Fetch current product context if user is currently viewing a product
     let productContext = '';
     if (currentProductId) {
-      const currentProduct = await prisma.product.findUnique({
-        where: { id: parseInt(currentProductId) },
+      const isNumeric = !isNaN(parseInt(currentProductId));
+      const currentProduct = await prisma.product.findFirst({
+        where: isNumeric
+          ? { OR: [{ id: parseInt(currentProductId) }, { slug: String(currentProductId) }] }
+          : { slug: String(currentProductId) },
         include: { brand: true, subCategory: true, productVariants: true }
       });
       if (currentProduct) {
+        const origP = parseFloat(currentProduct.price);
+        const discP = getFinalPrice(origP, currentProduct.discountType, currentProduct.discountValue);
+        const hasDisc = origP > discP;
+        const insideFee = currentProduct.insideDhakaDeliveryCharge != null ? parseFloat(currentProduct.insideDhakaDeliveryCharge) : 80;
+        const outsideFee = currentProduct.outsideDhakaDeliveryCharge != null ? parseFloat(currentProduct.outsideDhakaDeliveryCharge) : 150;
+
+        let variantInfo = 'None (Single product)';
+        if (currentProduct.productVariants && currentProduct.productVariants.length > 0) {
+          variantInfo = currentProduct.productVariants.map(v => {
+            const vOrigP = parseFloat(v.price || origP);
+            const vDiscP = getFinalPrice(vOrigP, currentProduct.discountType, currentProduct.discountValue);
+            let attrStr = '';
+            if (v.attributes && typeof v.attributes === 'object') {
+              attrStr = Object.entries(v.attributes).map(([k, val]) => `${k}: ${val}`).join(', ');
+            }
+            return `  - Variant: ${attrStr || 'Standard'}, Original Price: ৳${vOrigP}, Discount Price: ৳${vDiscP}, Stock: ${v.quantity}`;
+          }).join('\n');
+        }
+
         productContext = `
-Customer is currently looking at this specific product:
-- Name: ${currentProduct.productName}
-- Price: ৳${currentProduct.price}
-- Stock: ${currentProduct.quantity > 0 ? 'In Stock' : 'Out of Stock'}
-- Description: ${currentProduct.description ? currentProduct.description.replace(/<[^>]*>/g, '').slice(0, 300) : 'N/A'}
+Customer is currently on this specific product page:
+- Product Title: ${currentProduct.productName}
+- Product Direct URL: https://ekhone.xyz/product/${currentProduct.slug || currentProduct.id}
+- Original Regular Price: ৳${origP}
+- Current Discount Offer Price: ৳${discP} ${hasDisc ? `(Save ৳${origP - discP} with ${currentProduct.discountValue}${currentProduct.discountType === 'Fixed' ? '৳' : '%'} OFF)` : '(No extra discount)'}
+- Available Variants & Color Options:
+${variantInfo}
+- Specific Delivery Charge for this product: Dhaka Inside ৳${insideFee}, Outside Dhaka ৳${outsideFee}
+- Stock Availability: ${currentProduct.quantity > 0 ? `${currentProduct.quantity} units in stock` : 'Out of Stock'}
 - Brand: ${currentProduct.brand?.name || 'Authentic'}
-- Category: ${currentProduct.subCategory?.name || 'General'}
 `;
       }
     }
 
-    // Fetch popular/available products in store
+    // Fetch active products in store with their full details, variants, and delivery fees
     const storeProducts = await prisma.product.findMany({
       where: { status: true, isArchived: false },
-      take: 12,
-      select: {
-        id: true,
-        slug: true,
-        productName: true,
-        price: true,
-        quantity: true
+      take: 15,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        productVariants: true,
+        brand: true,
       }
     });
 
     const productsCatalogText = storeProducts
-      .map(p => `• ${p.productName} (৳${p.price})`)
+      .map(p => {
+        const origP = parseFloat(p.price);
+        const discP = getFinalPrice(origP, p.discountType, p.discountValue);
+        const insideFee = p.insideDhakaDeliveryCharge != null ? parseFloat(p.insideDhakaDeliveryCharge) : 80;
+        const outsideFee = p.outsideDhakaDeliveryCharge != null ? parseFloat(p.outsideDhakaDeliveryCharge) : 150;
+        
+        let variantsSummary = '';
+        if (p.productVariants && p.productVariants.length > 0) {
+          const vList = p.productVariants.map(v => {
+            const vOrig = parseFloat(v.price || origP);
+            const vDisc = getFinalPrice(vOrig, p.discountType, p.discountValue);
+            let attr = '';
+            if (v.attributes && typeof v.attributes === 'object') {
+              attr = Object.entries(v.attributes).map(([k, val]) => `${k}: ${val}`).join(' ');
+            }
+            return `${attr || 'Option'} (৳${vDisc})`;
+          }).join(', ');
+          variantsSummary = ` | Variants: [${vList}]`;
+        }
+
+        return `• Title: ${p.productName} | Discount Price: ৳${discP}${origP > discP ? ` (Regular ৳${origP})` : ''} | Link: https://ekhone.xyz/product/${p.slug || p.id} | Delivery: Dhaka ৳${insideFee}, Outside ৳${outsideFee}${variantsSummary}`;
+      })
       .join('\n');
 
     const systemInstruction = `
-You are the official sweet, friendly, and helpful Bengali AI Assistant for "Ekhone" (pronounced "এখনই" / Ekhoni, website: ekhone.xyz) - Bangladesh's best authentic online shopping website. Always pronounce and write the store name as "এখনই" (Ekhoni).
+You are the official sweet, highly knowledgeable, and friendly Bengali AI Shopping Assistant for "Ekhone" (pronounced "এখনই", website: ekhone.xyz) - Bangladesh's best authentic online store.
 
-Store Information:
+Store & Order Details:
 - Store Name: এখনই (Ekhone)
-- Website: ekhone.xyz
-- Delivery: Dhaka Inside ৳80, Outside Dhaka ৳150. Nationwide fast home delivery within 2-4 days.
-- Payment: Cash on Delivery (COD), bKash, Nagad available.
-- Authenticity: 100% genuine products with easy return on delivery.
+- Website: https://ekhone.xyz
+- Payment: Cash on Delivery (ক্যাশ অন ডেলিভারি / COD), bKash, Nagad
+- Return Policy: ডেলিভারিম্যানের সামনে চেক করে নেওয়ার সুবিধা এবং ১০০% জেনুইন প্রোডাক্ট গ্যারান্টি।
 
-Available Featured Products:
+Products in Catalog (with prices, variants, delivery charges, and direct links):
 ${productsCatalogText}
 
 ${productContext}
 
-Guidelines for your response:
-1. Speak in sweet, friendly, polite, natural spoken Bengali (কথ্য বাংলা / প্রমিত বাংলা).
-2. Keep your answer strictly within 1 to 2 short sentences (maximum 25-30 words) so it responds ultra-fast and sounds natural.
-3. PRODUCT NAME RULE: Keep the specific Product Titles and Brand Names in English exactly as they appear in the store catalog (for example "Samsung Galaxy S24 Ultra", "iPhone 12 Pro Max", "Kitchen Cookeries Black"). Do NOT translate product names into Bengali letters.
-4. LANGUAGE RULE: Except for the product titles, EVERYTHING else in the sentence must be in natural, fluent, sweet Bengali (কথ্য বাংলা).
-5. If customer asks about delivery: Dhaka inside ৳80, outside ৳150, delivery time 2-4 days.
-6. If customer asks about price, directly state the price from the store list (e.g. ৳১,৪৫,০০০).
-7. Do not write long essays or bullet lists. Keep it warm, quick, and conversational.
+CRITICAL RULES FOR ACCURATE RESPONSES:
+1. DISCOUNT & PRICE: Always mention the DISCOUNTED OFFER PRICE (৳) prominently. If there is a regular price and a discount, mention both naturally (e.g. "রেগুলার মূল্য ৳১,২৫,০০০ হলেও ডিসকাউন্টে পাচ্ছেন মাত্র ৳১,২২,৫০০ টাকায়!").
+2. VARIANTS & COLORS: If the customer asks about available colors, sizes, or variants of a product, list the exact available colors/variants from the product details above along with their specific variant prices.
+3. DIRECT PRODUCT LINKS: Whenever the customer asks for a product, wants to view/buy it, or asks for a link, provide the EXACT DIRECT PRODUCT LINK (e.g. https://ekhone.xyz/product/apple-iphone-12-pro-max). NEVER give just the plain homepage "ekhone.xyz" when a specific product is being discussed!
+4. DELIVERY CHARGE: Always check and state the exact delivery fee of the specific product being asked about (e.g. ঢাকা সিটিতে ৳৮০ এবং ঢাকার বাইরে ৳১৫০).
+5. PRODUCT TITLE LANGUAGE: Keep the specific Product Titles and Brand Names in English exactly as written in catalog (e.g. "Apple Iphone 12 Pro max", "Samsung Galaxy S24 Ultra", "Black", "Titanium Gray"). Do NOT write product titles in Bengali alphabet.
+6. SPOKEN LANGUAGE: Apart from product titles, brand names, and URLs, speak in natural, polite, engaging Bengali (কথ্য বাংলা / প্রমিত বাংলা). Keep response concise, friendly, and helpful (around 2-3 natural sentences).
 `;
 
     const contents = [

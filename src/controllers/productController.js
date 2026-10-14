@@ -14,6 +14,11 @@ const productInclude = {
     warranty: true,
     VariantAttributes: true,
     productVariants: true,
+    orderBumpProduct: {
+        include: {
+            productVariants: true,
+        },
+    },
     collections: {
         include: {
             collection: true,
@@ -60,6 +65,11 @@ const createProduct = async (req, res) => {
             "insideDhakaDeliveryCharge",
             "outsideDhakaDeliveryCharge",
             "visibility",
+            "orderBumpProductId",
+            "orderBumpTitle",
+            "orderBumpSubtitle",
+            "orderBumpDiscount",
+            "orderBumpPrice",
         ];
 
         const data = Object.keys(productData)
@@ -69,6 +79,22 @@ const createProduct = async (req, res) => {
         data.productType = productType;
         if (!data.visibility) {
             data.visibility = "public";
+        }
+
+        if (data.orderBumpProductId !== undefined) {
+            data.orderBumpProductId = data.orderBumpProductId ? parseInt(data.orderBumpProductId) : null;
+        }
+        if (data.orderBumpTitle !== undefined) {
+            data.orderBumpTitle = data.orderBumpTitle ? data.orderBumpTitle.trim() : null;
+        }
+        if (data.orderBumpSubtitle !== undefined) {
+            data.orderBumpSubtitle = data.orderBumpSubtitle ? data.orderBumpSubtitle.trim() : null;
+        }
+        if (data.orderBumpDiscount !== undefined) {
+            data.orderBumpDiscount = data.orderBumpDiscount !== null && data.orderBumpDiscount !== "" ? parseFloat(data.orderBumpDiscount) : 0;
+        }
+        if (data.orderBumpPrice !== undefined) {
+            data.orderBumpPrice = data.orderBumpPrice !== null && data.orderBumpPrice !== "" ? parseFloat(data.orderBumpPrice) : null;
         }
 
         if (data.subCategoryId) {
@@ -463,6 +489,11 @@ const updateProduct = async (req, res) => {
             "insideDhakaDeliveryCharge",
             "outsideDhakaDeliveryCharge",
             "visibility",
+            "orderBumpProductId",
+            "orderBumpTitle",
+            "orderBumpSubtitle",
+            "orderBumpDiscount",
+            "orderBumpPrice",
         ];
 
         const data = Object.keys(productData)
@@ -471,6 +502,22 @@ const updateProduct = async (req, res) => {
 
         if (productType !== undefined) {
             data.productType = productType;
+        }
+
+        if (data.orderBumpProductId !== undefined) {
+            data.orderBumpProductId = data.orderBumpProductId ? parseInt(data.orderBumpProductId) : null;
+        }
+        if (data.orderBumpTitle !== undefined) {
+            data.orderBumpTitle = data.orderBumpTitle ? data.orderBumpTitle.trim() : null;
+        }
+        if (data.orderBumpSubtitle !== undefined) {
+            data.orderBumpSubtitle = data.orderBumpSubtitle ? data.orderBumpSubtitle.trim() : null;
+        }
+        if (data.orderBumpDiscount !== undefined) {
+            data.orderBumpDiscount = data.orderBumpDiscount !== null && data.orderBumpDiscount !== "" ? parseFloat(data.orderBumpDiscount) : 0;
+        }
+        if (data.orderBumpPrice !== undefined) {
+            data.orderBumpPrice = data.orderBumpPrice !== null && data.orderBumpPrice !== "" ? parseFloat(data.orderBumpPrice) : null;
         }
 
         const targetCollections = collectionIds !== undefined ? collectionIds : collections;

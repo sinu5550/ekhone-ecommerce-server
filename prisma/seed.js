@@ -19,8 +19,8 @@ async function main() {
   console.log("🌱 Starting database seed for Ekhone...");
 
   // ---------- SYNC SUPABASE AUTH USER ----------
-  const adminEmail = "ahmedsiyan33@gmail.com";
-  const defaultPassword = "AdminPassword123!"; // You can log in with this or reset it anytime
+  const adminEmail = "ekhoneit@gmail.com";
+  const defaultPassword = "ekhone121";
 
   try {
     const { data: userList } = await supabase.auth.admin.listUsers();

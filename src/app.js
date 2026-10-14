@@ -47,6 +47,8 @@ const shipmentRoutes = require('./routes/shipmentRoutes');
 const accountingRoutes = require('./routes/accountingRoutes');
 const landingPageRoutes = require('./routes/landingPageRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const popupBannerRoutes = require('./routes/popupBannerRoutes');
+const storeSettingRoutes = require('./routes/storeSettingRoutes');
 
 const { getAllProductForAdmin } = require("./controllers/productController");
 const authRoutes = require('./routes/authRoutes');
@@ -118,6 +120,8 @@ app.use('/api/bento-gallery', bentoImageGalleryRoutes);
 app.use('/api/mid-banner', midBannerRoutes);
 app.use('/api/testimonials', testimonialsRoutes);
 app.use('/api/enquiry-us', enquiryUsRoutes);
+app.use('/api/popup-banner', popupBannerRoutes);
+app.use('/api/store-settings', storeSettingRoutes);
 
 
 app.use((err, req, res, next) => {
