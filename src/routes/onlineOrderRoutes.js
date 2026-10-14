@@ -16,8 +16,8 @@ router.get('/track-status/:orderNumber', trackOrderStatus);
 
 router.get('/without-invoice', authMiddleware, getOrdersWithoutInvoice);
 router.post('/', createOrder);
-router.get('/', getAllOrder);
-router.get('/:id', getOrderById);
+router.get('/', authMiddleware, getAllOrder);
+router.get('/:id', authMiddleware, getOrderById);
 router.patch('/:id', authMiddleware, updateOrder);
 router.delete('/:id', authMiddleware, deleteOrder);
 

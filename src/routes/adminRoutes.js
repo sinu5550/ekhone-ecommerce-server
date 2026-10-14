@@ -12,12 +12,12 @@ const router = express.Router();
 
 
 router.post('/', authMiddleware, createAdmin);
-router.get('/', getAllAdmin);
-router.get('/email/:email', getAdminByEmail);
+router.get('/', authMiddleware, getAllAdmin);
+router.get('/email/:email', authMiddleware, getAdminByEmail);
 router.patch("/users/:userId/role", authMiddleware, updateAdminUserRole);
 router.delete("/users/:userId", authMiddleware, deleteAdminUser);
 router.patch("/users/:userId/status", authMiddleware, updateAdminStatus);
-router.get("/profile", getAdminProfile);
+router.get("/profile", authMiddleware, getAdminProfile);
 
 
 module.exports = router;

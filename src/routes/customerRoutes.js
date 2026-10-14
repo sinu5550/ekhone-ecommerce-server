@@ -17,13 +17,13 @@ const { authMiddleware } = require("../middlewares/authMiddleware");
 
 router.post('/', createCustomer);
 router.get('/', authMiddleware, getAllCustomers);
-router.get('/email/:email', getCustomerByEmail);
+router.get('/email/:email', authMiddleware, getCustomerByEmail);
 router.get('/:id', authMiddleware, getCustomerById);
 router.patch('/:id', authMiddleware, updateCustomer);
 router.delete('/:id', authMiddleware, deleteCustomer);
 // Get addresses for a customer
-router.get('/:id/addresses', getCustomerAddresses);
-router.post('/:id/addresses',  addCustomerAddress);
+router.get('/:id/addresses', authMiddleware, getCustomerAddresses);
+router.post('/:id/addresses', addCustomerAddress);
 router.patch('/addresses/:addressId', authMiddleware, updateCustomerAddress);
 router.delete('/addresses/:addressId', authMiddleware, deleteCustomerAddress);
 
