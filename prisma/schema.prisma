@@ -1334,6 +1334,12 @@ model StoreSetting {
   footerLogoBg    Boolean  @default(false)
   primaryColor    String   @default("#F45116")
   secondaryColor  String   @default("#102D50")
+
+  // Duplicate Order Configuration
+  checkDuplicateOrder         Boolean  @default(true)
+  duplicateOrderWindowHours   Int      @default(24)
+  duplicateOrderMessage       String?  @default("You recently placed an order. Our team is processing it. If you need to make changes, please contact us.")
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

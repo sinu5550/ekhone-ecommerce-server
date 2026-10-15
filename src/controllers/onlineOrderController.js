@@ -146,7 +146,142 @@ const createOrder = async (req, res) => {
         }
 
         // ============================================
+        // CHECK DUPLICATE ORDER (Configured via Admin)
+        // Also checks Device / User-Agent & Phone
+        // ============================================
+        try {
+            const storeSetting = await prisma.storeSetting.findUnique({ where: { id: 1 } });
+            const isDuplicateCheckActive = storeSetting ? storeSetting.checkDuplicateOrder !== false : true;
+
+            if (isDuplicateCheckActive) {
+                const windowHours = storeSetting?.duplicateOrderWindowHours || 24;
+                const cutoffDate = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+                // Candidate phone numbers
+                const checkPhones = [
+                    customer.phone,
+                    address.phoneNumber,
+                    req.body.phoneNumber,
+                    req.body.phone
+                ].filter(Boolean);
+
+                // Extract exact client IP & User-Agent (matching BizMation style)
+                const currentUserAgent = (req.headers['user-agent'] || req.body.userAgent || '').trim();
+                const currentIp = (
+                    req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+                    req.headers['x-real-ip'] ||
+                    req.socket?.remoteAddress ||
+                    req.connection?.remoteAddress ||
+                    req.ip ||
+                    ''
+                ).trim();
+
+                const orConditions = [];
+
+                // Condition A: Same customer or same phone number
+                if (customerIdInt) orConditions.push({ customerId: customerIdInt });
+                if (checkPhones.length > 0) {
+                    orConditions.push({ customer: { phone: { in: checkPhones } } });
+                    orConditions.push({ shippingAddress: { phoneNumber: { in: checkPhones } } });
+                }
+
+                // Condition B: Exactly like BizMation's "Duplicate Order by IP Agent!"
+                // MUST match BOTH Same IP AND Same Device User-Agent simultaneously
+                const hasValidIp = currentIp && currentIp.length > 2;
+                const hasValidAgent = currentUserAgent && currentUserAgent.length > 10;
+
+                if (hasValidIp && hasValidAgent) {
+                    orConditions.push({
+                        AND: [
+                            {
+                                note: {
+                                    contains: `[IP: ${currentIp}]`
+                                }
+                            },
+                            {
+                                note: {
+                                    contains: `[Device: ${currentUserAgent}]`
+                                }
+                            }
+                        ]
+                    });
+                } else if (hasValidAgent) {
+                    // Fallback to exact device match if IP is local/empty
+                    orConditions.push({
+                        note: {
+                            contains: `[Device: ${currentUserAgent}]`
+                        }
+                    });
+                }
+
+                if (orConditions.length > 0) {
+                    const recentDuplicateOrder = await prisma.onlineOrder.findFirst({
+                        where: {
+                            createdAt: { gte: cutoffDate },
+                            OR: orConditions
+                        },
+                        orderBy: { createdAt: 'desc' },
+                        select: {
+                            id: true,
+                            orderNumber: true,
+                            createdAt: true,
+                            note: true
+                        }
+                    });
+
+                    if (recentDuplicateOrder) {
+                        const orderTime = new Date(recentDuplicateOrder.createdAt).getTime();
+                        const unlockTime = orderTime + (windowHours * 60 * 60 * 1000);
+                        const msRemaining = Math.max(0, unlockTime - Date.now());
+                        const totalMinutesRemaining = Math.ceil(msRemaining / (60 * 1000));
+                        const hoursRemaining = Math.floor(totalMinutesRemaining / 60);
+                        const minutesRemaining = totalMinutesRemaining % 60;
+
+                        // Bengali numerals converter
+                        const toBn = (num) => String(num).replace(/[0-9]/g, d => "০১২৩৪৫৬৭৮৯"[d]);
+
+                        let remainingTimeBn = "";
+                        if (hoursRemaining > 0 && minutesRemaining > 0) {
+                            remainingTimeBn = `${toBn(hoursRemaining)} ঘণ্টা ${toBn(minutesRemaining)} মিনিট`;
+                        } else if (hoursRemaining > 0) {
+                            remainingTimeBn = `${toBn(hoursRemaining)} ঘণ্টা`;
+                        } else {
+                            remainingTimeBn = `${toBn(Math.max(1, minutesRemaining))} মিনিট`;
+                        }
+
+                        const defaultMsg = `আপনি ইতিমধ্যে একটি অর্ডার (অর্ডার নম্বর: #${recentDuplicateOrder.orderNumber}) সম্পন্ন করেছেন যা বর্তমানে প্রসেসিং রয়েছে। অনুগ্রহ করে ${remainingTimeBn} পর পুনরায় অর্ডার করুন।`;
+                        let customMsg = storeSetting?.duplicateOrderMessage?.trim();
+                        // If null, empty, or previous English default string, use Bengali defaultMsg
+                        if (!customMsg || customMsg.toLowerCase().includes("you recently placed an order") || customMsg.toLowerCase().includes("our team is processing it")) {
+                            customMsg = defaultMsg;
+                        }
+                        const formattedMsg = customMsg.replace(/#ORD-[A-Za-z0-9-]+/gi, `#${recentDuplicateOrder.orderNumber}`);
+
+                        return res.status(409).json({
+                            success: false,
+                            isDuplicate: true,
+                            code: "DUPLICATE_ORDER",
+                            orderNumber: recentDuplicateOrder.orderNumber,
+                            message: formattedMsg,
+                            remainingTimeBn: remainingTimeBn,
+                            windowHours: windowHours,
+                            recentOrder: recentDuplicateOrder
+                        });
+                    }
+                }
+            }
+        } catch (dupErr) {
+            console.error("Duplicate order verification error:", dupErr.message);
+            // Non-blocking in case of DB read error
+        }
+
+        // Check if order originates from a Landing Page
+        const isLandingPageOrder = (req.body.source === "Landing Page") || 
+            (req.body.note && typeof req.body.note === "string" && req.body.note.includes("Landing Page Order"));
+
+        // ============================================
         // VALIDATE REGULAR PRODUCTS ONLY (Not Bundles)
+        // Landing Page orders bypass stockout validation so marketing ads continue to convert
         // ============================================
         const validatedItems = [];
         for (const item of items) {
@@ -185,10 +320,11 @@ const createOrder = async (req, res) => {
                 }
 
                 const variantStock = parseInt(variant.quantity || 0);
-                if (variantStock < requestedQty) {
+                // If not landing page, enforce strict stock check
+                if (!isLandingPageOrder && variantStock < requestedQty) {
                     return errorResponse(
                         res,
-                        `Insufficient stock for ${product.productName}. Available: ${variantStock}`,
+                        `পণ্যটি বর্তমানে স্টক আউট। (${product.productName})`,
                         400
                     );
                 }
@@ -205,10 +341,11 @@ const createOrder = async (req, res) => {
                 });
             } else {
                 const productStock = parseInt(product.quantity || 0);
-                if (product.productType !== 'variant' && productStock < requestedQty) {
+                // If not landing page, enforce strict stock check
+                if (!isLandingPageOrder && product.productType !== 'variant' && productStock < requestedQty) {
                     return errorResponse(
                         res,
-                        `Insufficient stock for ${product.productName}. Available: ${productStock}`,
+                        `পণ্যটি বর্তমানে স্টক আউট। (${product.productName})`,
                         400
                     );
                 }
@@ -372,6 +509,26 @@ const createOrder = async (req, res) => {
                 ? req.body.paymentStatus
                 : computedPaymentStatus;
 
+            const clientUserAgent = (req.headers['user-agent'] || req.body.userAgent || '').trim();
+            const clientIp = (
+                req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+                req.headers['x-real-ip'] ||
+                req.socket?.remoteAddress ||
+                req.connection?.remoteAddress ||
+                req.ip ||
+                ''
+            ).trim();
+
+            const deviceMeta = clientUserAgent ? `[Device: ${clientUserAgent}]` : '';
+            const ipMeta = clientIp ? `[IP: ${clientIp}]` : '';
+
+            let finalNote = note || '';
+            if (validatedCoupon) finalNote += `\nCoupon Code: ${couponCode.toUpperCase()}`;
+            if (pointsToRedeemInt > 0) finalNote += `\nRedeemed ${pointsToRedeemInt} loyalty points`;
+            if (deviceMeta) finalNote += `\n${deviceMeta}`;
+            if (ipMeta) finalNote += `\n${ipMeta}`;
+            finalNote = finalNote.trim() || null;
+
             const newOrder = await tx.onlineOrder.create({
                 data: {
                     orderNumber,
@@ -387,9 +544,7 @@ const createOrder = async (req, res) => {
                     grandTotal: finalGrandTotal,
                     paidAmount: parseFloat(paidAmount),
                     dueAmount: finalDueAmount,
-                    note: (validatedCoupon || pointsToRedeemInt > 0)
-                        ? `${note || ''}${validatedCoupon ? `\nCoupon Code: ${couponCode.toUpperCase()}` : ''}${pointsToRedeemInt > 0 ? `\nRedeemed ${pointsToRedeemInt} loyalty points` : ''}`
-                        : (note || null),
+                    note: finalNote,
                     status: orderStatus,
                     paymentStatus: orderPaymentStatus,
                     pointsRedeemed: pointsToRedeemInt > 0 ? pointsToRedeemInt : null,

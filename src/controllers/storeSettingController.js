@@ -11,7 +11,10 @@ const DEFAULT_SETTINGS = {
   navbarLogoBg: false,
   footerLogoBg: false,
   primaryColor: '#F45116',
-  secondaryColor: '#102D50'
+  secondaryColor: '#102D50',
+  checkDuplicateOrder: true,
+  duplicateOrderWindowHours: 24,
+  duplicateOrderMessage: "আপনি সম্প্রতি একটি অর্ডার করেছেন। আমাদের টিম সেটি প্রসেস করছে। অর্ডারে কোনো পরিবর্তন করতে চাইলে অনুগ্রহ করে আমাদের সাথে যোগাযোগ করুন।"
 };
 
 // Get Store Settings (Public for Storefront and Admin)
@@ -45,7 +48,10 @@ const updateStoreSettings = async (req, res) => {
       navbarLogoBg,
       footerLogoBg,
       primaryColor,
-      secondaryColor
+      secondaryColor,
+      checkDuplicateOrder,
+      duplicateOrderWindowHours,
+      duplicateOrderMessage
     } = req.body;
 
     const dataToUpdate = {};
@@ -57,6 +63,9 @@ const updateStoreSettings = async (req, res) => {
     if (footerLogoBg !== undefined) dataToUpdate.footerLogoBg = Boolean(footerLogoBg);
     if (primaryColor !== undefined) dataToUpdate.primaryColor = primaryColor || '#F45116';
     if (secondaryColor !== undefined) dataToUpdate.secondaryColor = secondaryColor || '#102D50';
+    if (checkDuplicateOrder !== undefined) dataToUpdate.checkDuplicateOrder = Boolean(checkDuplicateOrder);
+    if (duplicateOrderWindowHours !== undefined) dataToUpdate.duplicateOrderWindowHours = Math.max(1, parseInt(duplicateOrderWindowHours) || 24);
+    if (duplicateOrderMessage !== undefined) dataToUpdate.duplicateOrderMessage = duplicateOrderMessage?.trim() || null;
 
     const updated = await prisma.storeSetting.upsert({
       where: { id: 1 },
@@ -71,7 +80,7 @@ const updateStoreSettings = async (req, res) => {
     return successResponse(res, 'Store settings updated successfully', updated);
   } catch (error) {
     console.error('Update store settings error:', error);
-    return errorResponse(res, 'Failed to update store settings', 500);
+    return errorResponse(res, error.message || 'Failed to update store settings', 500);
   }
 };
 

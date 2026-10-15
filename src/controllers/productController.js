@@ -330,12 +330,15 @@ const getAllProduct = async (req, res) => {
                     discountValue: true,
                     images: true,
                     productType: true,
+                    quantity: true,
+                    status: true,
                     productVariants: {
                         select: {
                             id: true,
                             price: true,
                             image: true,
                             attributes: true,
+                            quantity: true,
                         }
                     },
                     brand: { select: { name: true } },

@@ -218,6 +218,18 @@ class BizMationService {
             // If we also subtracted product-level discount here, BizMation would double-discount the order (3500 - 3000 = 500).
             const orderLevelDiscount = parseFloat(order.voucher_promo || 0);
 
+            // Check if duplicate order checking is active (default 'Yes')
+            let isDuplicateCheckActive = true;
+            try {
+                const storeSetting = await prisma.storeSetting.findUnique({ where: { id: 1 } });
+                if (storeSetting && storeSetting.checkDuplicateOrder !== undefined) {
+                    isDuplicateCheckActive = Boolean(storeSetting.checkDuplicateOrder);
+                }
+            } catch (e) {
+                // Default to true
+                isDuplicateCheckActive = true;
+            }
+
             const payload = {
                 uu_id: String(uuidToken),
                 name: String(customerName).trim(),
@@ -225,7 +237,7 @@ class BizMationService {
                 mobile_number: mobileNumber,
                 delivery_charge: parseFloat(order.shippingCost || 0),
                 discount: orderLevelDiscount,
-                check_duplicate_order: 'No',
+                check_duplicate_order: isDuplicateCheckActive ? 'Yes' : 'No',
                 user_ip: userIp,
                 user_agent: userAgent,
                 inventory_id: this.getInventoryId(),
